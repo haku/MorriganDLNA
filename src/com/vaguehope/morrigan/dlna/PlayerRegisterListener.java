@@ -36,12 +36,11 @@ public class PlayerRegisterListener implements ServiceListener {
 	}
 
 	private PlayerRegister getPlayerRegisterService (final ServiceReference<PlayerRegister> ref) {
-		final String key = ref.getBundle().getSymbolicName();
-		PlayerRegister pr = this.playerRegisters.get(ref);
+		PlayerRegister pr = this.playerRegisters.get(refToKey(ref));
 		if (pr != null) return pr;
 
 		pr = this.context.getService(ref);
-		final PlayerRegister prevPr = this.playerRegisters.putIfAbsent(key, pr);
+		final PlayerRegister prevPr = this.playerRegisters.putIfAbsent(refToKey(ref), pr);
 		if (prevPr == null) return pr;
 		this.context.ungetService(ref);
 		return prevPr;
@@ -59,7 +58,7 @@ public class PlayerRegisterListener implements ServiceListener {
 				this.playerHolder.registerCurrentPlayers(playerRegister);
 				break;
 			case ServiceEvent.UNREGISTERING:
-				this.playerRegisters.remove(ev.getServiceReference().getBundle().getSymbolicName());
+				this.playerRegisters.remove(refToKey(ev.getServiceReference()));
 				break;
 		}
 	}
@@ -70,6 +69,10 @@ public class PlayerRegisterListener implements ServiceListener {
 
 	public void removeAvTransport (final RemoteDevice device) {
 		this.playerHolder.removeAvTransport(device);
+	}
+
+	private static String refToKey (final ServiceReference<?> ref) {
+		return ref.getBundle().getSymbolicName();
 	}
 
 }
