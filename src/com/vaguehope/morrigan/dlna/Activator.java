@@ -5,6 +5,8 @@ import org.osgi.framework.BundleContext;
 import org.teleal.cling.UpnpService;
 import org.teleal.cling.UpnpServiceImpl;
 
+import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
+
 public class Activator implements BundleActivator {
 
 	private MediaServer mediaServer;

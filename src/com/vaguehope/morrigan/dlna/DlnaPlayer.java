@@ -24,6 +24,7 @@ import org.teleal.cling.support.model.PositionInfo;
 import org.teleal.cling.support.model.TransportInfo;
 import org.teleal.cling.support.model.TransportStatus;
 
+import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.Register;
 import com.vaguehope.morrigan.model.media.DurationData;

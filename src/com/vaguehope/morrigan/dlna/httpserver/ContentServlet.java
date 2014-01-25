@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.httpserver;
 
 import java.io.File;
 import java.io.IOException;
