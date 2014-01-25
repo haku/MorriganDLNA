@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
-import java.util.logging.Logger;
 
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
@@ -20,8 +19,6 @@ import com.vaguehope.morrigan.player.Player;
 import com.vaguehope.morrigan.player.PlayerRegister;
 
 public class Activator implements BundleActivator {
-
-	protected static final Logger LOG = Logger.getLogger(Activator.class.getName());
 
 	private Set<Object> remotePlayers;
 	private Queue<Player> players;
@@ -39,14 +36,14 @@ public class Activator implements BundleActivator {
 		this.upnpService.getRegistry().addListener(new DeviceWatcher());
 		this.upnpService.getControlPoint().search();
 
-		LOG.info("DLNA started.");
+		System.err.println("DLNA started.");
 	}
 
 	@Override
 	public void stop (final BundleContext context) throws Exception {
 		disposePlayers();
 		this.upnpService.shutdown();
-		LOG.info("DLNA stopped.");
+		System.err.println("DLNA stopped.");
 	}
 
 //	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -85,7 +82,7 @@ public class Activator implements BundleActivator {
 //			register.register(player);
 //			this.players.add(player);
 		}
-		LOG.info("Registered " + this.remotePlayers.size() + " players in " + register + ".");
+		System.err.println("Registered " + this.remotePlayers.size() + " players in " + register + ".");
 	}
 
 	private void disposePlayers () {
