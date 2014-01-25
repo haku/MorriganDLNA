@@ -11,7 +11,7 @@ import org.teleal.cling.support.model.TransportInfo;
 import org.teleal.cling.support.model.TransportState;
 import org.teleal.cling.support.model.TransportStatus;
 
-class WatcherTask implements Runnable {
+final class WatcherTask implements Runnable {
 
 	public static WatcherTask schedule (final ScheduledExecutorService scheduledExecutor, final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport, final Runnable onEndOfTrack) {
 		final WatcherTask task = new WatcherTask(uriToWatch, currentUri, avTransport, onEndOfTrack);

@@ -107,7 +107,7 @@ public class DlnaPlayer implements Player {
 
 	@Override
 	public void loadAndStartPlaying (final IMediaTrackList<? extends IMediaTrack> list, final IMediaTrack track) {
-		if (track == null) throw new NullPointerException();
+		if (track == null) throw new IllegalArgumentException("track must not be null.");
 		loadAndStartPlaying(new PlayItem(list, track));
 	}
 

@@ -50,8 +50,7 @@ public class MediaServer {
 		final String externalHttpUrl = getExternalHttpUrl();
 		final String id = HashHelper.sha1(file.getAbsolutePath()) + "-" + file.getName().replaceAll("[^a-zA-Z0-9]", "_");
 		this.files.put(id, file);
-		final String url = externalHttpUrl + "/" + id;
-		return url;
+		return externalHttpUrl + "/" + id;
 	}
 
 	private static String getExternalHttpUrl () {
