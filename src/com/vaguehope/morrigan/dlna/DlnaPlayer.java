@@ -5,21 +5,11 @@ import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.teleal.cling.controlpoint.ControlPoint;
-import org.teleal.cling.model.action.ActionInvocation;
-import org.teleal.cling.model.message.UpnpResponse;
 import org.teleal.cling.model.meta.RemoteService;
-import org.teleal.cling.support.avtransport.callback.GetPositionInfo;
-import org.teleal.cling.support.avtransport.callback.GetTransportInfo;
-import org.teleal.cling.support.avtransport.callback.Pause;
-import org.teleal.cling.support.avtransport.callback.Play;
-import org.teleal.cling.support.avtransport.callback.SetAVTransportURI;
-import org.teleal.cling.support.avtransport.callback.Stop;
 import org.teleal.cling.support.model.PositionInfo;
 import org.teleal.cling.support.model.TransportInfo;
 import org.teleal.cling.support.model.TransportStatus;
@@ -39,23 +29,21 @@ import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class DlnaPlayer implements Player {
 
-	private static final int ACTION_TIMEOUT_SECONDS = 10;
-
 	private final int playerId;
-	private final RemoteService avTransport;
+	private final String playerName;
+	private final AvTransport avTransport;
 	private final Register<Player> register;
-	private final ControlPoint controlPoint;
 	private final MediaServer mediaServer;
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
 	private final AtomicReference<PlaybackOrder> playbackOrder = new AtomicReference<PlaybackOrder>(PlaybackOrder.SEQUENTIAL);
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
 
-	public DlnaPlayer (final int id, final RemoteService avTransport, final PlayerRegister register, final ControlPoint controlPoint, final MediaServer mediaServer) {
+	public DlnaPlayer (final int id, final RemoteService avTransportSvc, final PlayerRegister register, final ControlPoint controlPoint, final MediaServer mediaServer) {
 		this.playerId = id;
-		this.avTransport = avTransport;
+		this.playerName = avTransportSvc.getDevice().getDetails().getFriendlyName();
 		this.register = register;
-		this.controlPoint = controlPoint;
+		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
 	}
 
@@ -77,16 +65,16 @@ public class DlnaPlayer implements Player {
 	}
 
 	@Override
+	public String getName () {
+		return this.playerName;
+	}
+
+	@Override
 	public void dispose () {
 		if (this.alive.compareAndSet(true, false)) {
 			this.register.unregister(this);
 			System.err.println("Disposed player: " + toString());
 		}
-	}
-
-	@Override
-	public String getName () {
-		return this.avTransport.getDevice().getDetails().getFriendlyName();
 	}
 
 	@Override
@@ -113,27 +101,9 @@ public class DlnaPlayer implements Player {
 			final File file = new File(item.item.getFilepath());
 			if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath());
 			System.err.println("Loading item: " + file.getAbsolutePath());
-
 			stopPlaying();
-
-			final String uri = this.mediaServer.uriForFile(file);
-			final CountDownLatch uriSet = new CountDownLatch(1);
-			this.controlPoint.execute(new SetAVTransportURI(this.avTransport, uri) {
-				@Override
-				public void success (final ActionInvocation invocation) {
-					System.err.println("Set av transport uri: " + uri);
-					uriSet.countDown();
-				}
-
-				@Override
-				public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-					System.err.println("Failed to set av transport uri: " + defaultMsg);
-					uriSet.countDown();
-				}
-			});
-			await(uriSet, "Failed to set URI '" + uri + "' on transport '" + this.avTransport + "'.");
-			play();
-
+			this.avTransport.setUri(this.mediaServer.uriForFile(file));
+			this.avTransport.play();
 			this.currentItem.set(item);
 		}
 		catch (final Exception e) {
@@ -141,68 +111,22 @@ public class DlnaPlayer implements Player {
 		}
 	}
 
-	private void play () {
-		final CountDownLatch cdl = new CountDownLatch(1);
-		this.controlPoint.execute(new Play(this.avTransport) {
-			@Override
-			public void success (final ActionInvocation invocation) {
-				System.err.println("Playing desu~!");
-				cdl.countDown();
-			}
-
-			@Override
-			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed to play: " + defaultMsg);
-				cdl.countDown();
-			}
-		});
-		await(cdl, "Failed to play on transport '" + this.avTransport + "'.");
-	}
-
 	@Override
 	public void pausePlaying () {
 		checkAlive();
 		if (getPlayState() == PlayState.PAUSED) {
-			play();
+			this.avTransport.play();
 		}
 		else {
-			final CountDownLatch cdl = new CountDownLatch(1);
-			this.controlPoint.execute(new Pause(this.avTransport) {
-				@Override
-				public void success (final ActionInvocation invocation) {
-					System.err.println("Paused desu~");
-					cdl.countDown();
-				}
-
-				@Override
-				public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-					System.err.println("Failed to pause: " + defaultMsg);
-					cdl.countDown();
-				}
-			});
-			await(cdl, "Failed to pause playback on transport '" + this.avTransport + "'.");
+			this.avTransport.pause();
 		}
 	}
 
 	@Override
 	public void stopPlaying () {
 		checkAlive();
-		final CountDownLatch cdl = new CountDownLatch(1);
-		this.controlPoint.execute(new Stop(this.avTransport) {
-			@Override
-			public void success (final ActionInvocation invocation) {
-				System.err.println("Stopped desu~");
-				cdl.countDown();
-			}
-
-			@Override
-			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed to stop: " + defaultMsg);
-				cdl.countDown();
-			}
-		});
 		try {
-			await(cdl, "Failed to stop playback on transport '" + this.avTransport + "'.");
+			this.avTransport.stop();
 		}
 		finally {
 			this.currentItem.set(null);
@@ -218,24 +142,7 @@ public class DlnaPlayer implements Player {
 	@Override
 	public PlayState getPlayState () {
 		checkAlive();
-		final CountDownLatch cdl = new CountDownLatch(1);
-		final AtomicReference<TransportInfo> ref = new AtomicReference<TransportInfo>();
-		this.controlPoint.execute(new GetTransportInfo(this.avTransport) {
-			@Override
-			public void received (final ActionInvocation invocation, final TransportInfo transportInfo) {
-				ref.set(transportInfo);
-				cdl.countDown();
-			}
-
-			@Override
-			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed get transport info: " + defaultMsg);
-				cdl.countDown();
-			}
-		});
-		await(cdl, "Failed to get playback state for transport '" + this.avTransport + "'.");
-
-		final TransportInfo ti = ref.get();
+		final TransportInfo ti = this.avTransport.getTransportInfo();
 		if (ti == null) return PlayState.STOPPED;
 		if (ti.getCurrentTransportStatus() == TransportStatus.OK) {
 			switch (ti.getCurrentTransportState()) {
@@ -272,7 +179,7 @@ public class DlnaPlayer implements Player {
 	@Override
 	public long getCurrentPosition () {
 		checkAlive();
-		final PositionInfo pi = getPositionInfo();
+		final PositionInfo pi = this.avTransport.getPositionInfo();
 		if (pi == null) return 0;
 		return pi.getTrackElapsedSeconds();
 	}
@@ -280,29 +187,9 @@ public class DlnaPlayer implements Player {
 	@Override
 	public int getCurrentTrackDuration () {
 		checkAlive();
-		final PositionInfo pi = getPositionInfo();
+		final PositionInfo pi = this.avTransport.getPositionInfo();
 		if (pi == null) return 0;
 		return (int) pi.getTrackDurationSeconds();
-	}
-
-	private PositionInfo getPositionInfo () {
-		final CountDownLatch cdl = new CountDownLatch(1);
-		final AtomicReference<PositionInfo> ref = new AtomicReference<PositionInfo>();
-		this.controlPoint.execute(new GetPositionInfo(this.avTransport) {
-			@Override
-			public void received (final ActionInvocation invocation, final PositionInfo positionInfo) {
-				ref.set(positionInfo);
-				cdl.countDown();
-			}
-
-			@Override
-			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed get position info: " + defaultMsg);
-				cdl.countDown();
-			}
-		});
-		await(cdl, "Failed to get position info for transport '" + this.avTransport + "'.");
-		return ref.get();
 	}
 
 	@Override
@@ -398,16 +285,7 @@ public class DlnaPlayer implements Player {
 
 	@Override
 	public void goFullscreen (final int monitor) {
-		System.err.println("TODO: todo go full screen?");
-	}
-
-	private static void await (final CountDownLatch cdl, final String errMsg) {
-		try {
-			cdl.await(ACTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-		}
-		catch (final InterruptedException e) {
-			throw new IllegalStateException(errMsg, e);
-		}
+		System.err.println("TODO: Go full screen on monitor " + monitor + ".");
 	}
 
 }
