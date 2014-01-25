@@ -4,8 +4,14 @@ Morrigan DLNA
 A plugin for [Morrigan](https://github.com/haku/Morrigan).
 Adds support for playback via DLNA endpoints.
 
+TODO
+----
+
+- Increment play counts.
+
 Build
 -----
+
 `mvn clean install`
 
 Dev References
