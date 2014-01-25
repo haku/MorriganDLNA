@@ -79,7 +79,7 @@ public class PlayerHolder {
 	}
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
-		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), avTransport, register, this.controlPoint, this.mediaServer);
+		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), register, this.controlPoint, avTransport, this.mediaServer);
 		register.register(player);
 
 		Set<Player> playersFor = this.players.get(udn);

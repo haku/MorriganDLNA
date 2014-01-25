@@ -41,7 +41,7 @@ public class DlnaPlayer implements Player {
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
 	private final PlayerQueue queue;
 
-	public DlnaPlayer (final int id, final RemoteService avTransportSvc, final PlayerRegister register, final ControlPoint controlPoint, final MediaServer mediaServer) {
+	public DlnaPlayer (final int id, final PlayerRegister register, final ControlPoint controlPoint, final RemoteService avTransportSvc, final MediaServer mediaServer) {
 		this.playerId = id;
 		this.playerName = avTransportSvc.getDevice().getDetails().getFriendlyName();
 		this.register = register;
