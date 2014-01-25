@@ -39,7 +39,7 @@ import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class DlnaPlayer implements Player {
 
-	private static final int ACTION_TIMEOUT_SECONDS = 30;
+	private static final int ACTION_TIMEOUT_SECONDS = 10;
 
 	private final int playerId;
 	private final RemoteService avTransport;
