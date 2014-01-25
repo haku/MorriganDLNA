@@ -9,6 +9,7 @@ import org.teleal.cling.model.ModelUtil;
 import org.teleal.cling.model.action.ActionInvocation;
 import org.teleal.cling.model.message.UpnpResponse;
 import org.teleal.cling.model.meta.RemoteService;
+import org.teleal.cling.support.avtransport.callback.GetMediaInfo;
 import org.teleal.cling.support.avtransport.callback.GetPositionInfo;
 import org.teleal.cling.support.avtransport.callback.GetTransportInfo;
 import org.teleal.cling.support.avtransport.callback.Pause;
@@ -16,6 +17,7 @@ import org.teleal.cling.support.avtransport.callback.Play;
 import org.teleal.cling.support.avtransport.callback.Seek;
 import org.teleal.cling.support.avtransport.callback.SetAVTransportURI;
 import org.teleal.cling.support.avtransport.callback.Stop;
+import org.teleal.cling.support.model.MediaInfo;
 import org.teleal.cling.support.model.PositionInfo;
 import org.teleal.cling.support.model.TransportInfo;
 
@@ -136,6 +138,26 @@ public class AvTransport {
 			}
 		});
 		await(cdl, "get position info for transport '" + this.avTransport + "'.");
+		return ref.get();
+	}
+
+	public MediaInfo getMediaInfo () {
+		final CountDownLatch cdl = new CountDownLatch(1);
+		final AtomicReference<MediaInfo> ref = new AtomicReference<MediaInfo>();
+		this.controlPoint.execute(new GetMediaInfo(this.avTransport) {
+			@Override
+			public void received (final ActionInvocation invocation, final MediaInfo mi) {
+				ref.set(mi);
+				cdl.countDown();
+			}
+
+			@Override
+			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
+				System.err.println("Failed get media info: " + defaultMsg);
+				cdl.countDown();
+			}
+		});
+		await(cdl, "get media info for transport '" + this.avTransport + "'.");
 		return ref.get();
 	}
 

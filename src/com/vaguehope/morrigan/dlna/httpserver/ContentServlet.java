@@ -45,7 +45,6 @@ public final class ContentServlet extends DefaultServlet {
 		try {
 			final String id = URLDecoder.decode(pathInContext.replaceFirst("/", ""), "UTF-8");
 			final File file = this.files.get(id);
-			System.err.println("id:" + id + " --> " + file);
 			if (file != null) return Resource.newResource(file.toURI());
 		}
 		catch (final MalformedURLException e) {

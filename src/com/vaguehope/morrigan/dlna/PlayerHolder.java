@@ -7,6 +7,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.teleal.cling.controlpoint.ControlPoint;
@@ -22,14 +23,16 @@ public class PlayerHolder {
 
 	private final ControlPoint controlPoint;
 	private final MediaServer mediaServer;
+	private final ScheduledExecutorService scheduledExecutor;
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
 	private final Map<UDN, RemoteService> avTransports = new ConcurrentHashMap<UDN, RemoteService>();
 	private final ConcurrentMap<UDN, Set<Player>> players = new ConcurrentHashMap<UDN, Set<Player>>();
 
-	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer) {
+	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer, final ScheduledExecutorService scheduledExecutor) {
 		this.controlPoint = controlPoint;
 		this.mediaServer = mediaServer;
+		this.scheduledExecutor = scheduledExecutor;
 	}
 
 	public void addAvTransport (final RemoteDevice device, final RemoteService avTransport, final Collection<PlayerRegister> playerRegisters) {
@@ -79,7 +82,7 @@ public class PlayerHolder {
 	}
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
-		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), register, this.controlPoint, avTransport, this.mediaServer);
+		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), register, this.controlPoint, avTransport, this.mediaServer, this.scheduledExecutor);
 		register.register(player);
 
 		Set<Player> playersFor = this.players.get(udn);
@@ -88,7 +91,7 @@ public class PlayerHolder {
 		if (playersFor == null) throw new IllegalStateException();
 		playersFor.add(player);
 
-		System.err.println("Registered player udn=" + udn + " in " + register + ".");
+		System.err.println("Registered player " + player + " for udn=" + udn + " in " + register + ".");
 	}
 
 }

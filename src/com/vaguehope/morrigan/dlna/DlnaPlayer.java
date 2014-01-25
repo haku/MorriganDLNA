@@ -2,9 +2,11 @@ package com.vaguehope.morrigan.dlna;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -26,6 +28,7 @@ import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.Player;
 import com.vaguehope.morrigan.player.PlayerQueue;
 import com.vaguehope.morrigan.player.PlayerRegister;
+import com.vaguehope.morrigan.server.ServerConfig;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class DlnaPlayer implements Player {
@@ -35,19 +38,29 @@ public class DlnaPlayer implements Player {
 	private final AvTransport avTransport;
 	private final Register<Player> register;
 	private final MediaServer mediaServer;
+	private final ScheduledExecutorService scheduledExecutor;
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
 	private final AtomicReference<PlaybackOrder> playbackOrder = new AtomicReference<PlaybackOrder>(PlaybackOrder.SEQUENTIAL);
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
+	private final AtomicReference<String> currentUri = new AtomicReference<String>();
 	private final PlayerQueue queue;
+	private final AtomicReference<WatcherTask> watcher = new AtomicReference<WatcherTask>(null);
 
-	public DlnaPlayer (final int id, final PlayerRegister register, final ControlPoint controlPoint, final RemoteService avTransportSvc, final MediaServer mediaServer) {
+	public DlnaPlayer (final int id, final PlayerRegister register, final ControlPoint controlPoint, final RemoteService avTransportSvc, final MediaServer mediaServer, final ScheduledExecutorService scheduledExecutor) {
 		this.playerId = id;
 		this.playerName = avTransportSvc.getDevice().getDetails().getFriendlyName();
 		this.register = register;
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
+		this.scheduledExecutor = scheduledExecutor;
 		this.queue = new DefaultPlayerQueue();
+		try {
+			this.playbackOrder.set(new ServerConfig().getPlaybackOrder()); // TODO share this.
+		}
+		catch (IOException e) {
+			System.err.println("Failed to read server config: " + ErrorHelper.getCauseTrace(e));
+		}
 	}
 
 	private void checkAlive () {
@@ -59,6 +72,7 @@ public class DlnaPlayer implements Player {
 		return new StringBuilder("DlnaPlayer{")
 				.append("id=").append(getId())
 				.append(" name=").append(getName())
+				.append(" order=").append(getPlaybackOrder())
 				.append("}").toString();
 	}
 
@@ -103,16 +117,37 @@ public class DlnaPlayer implements Player {
 		try {
 			final File file = new File(item.item.getFilepath());
 			if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath());
-			System.err.println("Loading item: " + file.getAbsolutePath());
 			stopPlaying();
-			this.avTransport.setUri(this.mediaServer.uriForFile(file));
+			String uri = this.mediaServer.uriForFile(file);
+			System.err.println("loading: " + uri);
+			this.avTransport.setUri(uri);
+			this.currentUri.set(uri);
 			this.avTransport.play();
 			this.currentItem.set(item);
+			startWatcher(uri);
 		}
 		catch (final Exception e) {
 			System.err.println("Failed to start playback: " + ErrorHelper.getCauseTrace(e));
 		}
 	}
+
+	private void startWatcher (final String uri) {
+		final WatcherTask oldWatcher = this.watcher.getAndSet(null);
+		if (oldWatcher != null) oldWatcher.cancel();
+
+		final WatcherTask task = WatcherTask.schedule(this.scheduledExecutor, uri, this.currentUri, this.avTransport, this.onEndOfTrack);
+		if (!this.watcher.compareAndSet(null, task)) {
+			task.cancel();
+			System.err.println("Failed to configure watcher as another got there first.");
+		}
+	}
+
+	private final Runnable onEndOfTrack = new Runnable() {
+		@Override
+		public void run () {
+			nextTrack();
+		}
+	};
 
 	@Override
 	public void pausePlaying () {
