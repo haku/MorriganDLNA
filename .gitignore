@@ -1,4 +1,8 @@
-bin
-/javaCompiler...args
+/.classpath
+/.project
+/.settings
+/bin
 /build.xml
-target
+/javaCompiler...args
+/lib
+/target

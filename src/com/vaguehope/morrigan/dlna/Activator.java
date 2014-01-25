@@ -13,6 +13,8 @@ import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceEvent;
 import org.osgi.framework.ServiceListener;
 import org.osgi.framework.ServiceReference;
+import org.teleal.cling.UpnpService;
+import org.teleal.cling.UpnpServiceImpl;
 
 import com.vaguehope.morrigan.player.Player;
 import com.vaguehope.morrigan.player.PlayerRegister;
@@ -23,6 +25,7 @@ public class Activator implements BundleActivator {
 
 	private Set<Object> remotePlayers;
 	private Queue<Player> players;
+	private UpnpService upnpService;
 
 //	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -31,12 +34,18 @@ public class Activator implements BundleActivator {
 		this.remotePlayers = new HashSet<Object>();
 		this.players = new LinkedList<Player>();
 		startPlayerRegisterListener(context);
+
+		this.upnpService = new UpnpServiceImpl(new MyUpnpServiceConfiguration());
+		this.upnpService.getRegistry().addListener(new DeviceWatcher());
+		this.upnpService.getControlPoint().search();
+
 		LOG.info("DLNA started.");
 	}
 
 	@Override
 	public void stop (final BundleContext context) throws Exception {
 		disposePlayers();
+		this.upnpService.shutdown();
 		LOG.info("DLNA stopped.");
 	}
 
