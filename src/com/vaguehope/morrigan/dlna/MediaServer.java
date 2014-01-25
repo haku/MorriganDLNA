@@ -14,6 +14,9 @@ import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
+import com.vaguehope.morrigan.dlna.util.HashHelper;
+import com.vaguehope.morrigan.dlna.util.NetHelper;
+
 public class MediaServer {
 
 	private static final int HTTP_PORT = 29085;

@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.util;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
