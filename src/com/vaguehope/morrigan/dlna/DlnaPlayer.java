@@ -17,13 +17,14 @@ import org.teleal.cling.support.model.TransportStatus;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.Register;
-import com.vaguehope.morrigan.model.media.DurationData;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
+import com.vaguehope.morrigan.player.DefaultPlayerQueue;
 import com.vaguehope.morrigan.player.OrderHelper;
 import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.Player;
+import com.vaguehope.morrigan.player.PlayerQueue;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
@@ -38,6 +39,7 @@ public class DlnaPlayer implements Player {
 	private final AtomicBoolean alive = new AtomicBoolean(true);
 	private final AtomicReference<PlaybackOrder> playbackOrder = new AtomicReference<PlaybackOrder>(PlaybackOrder.SEQUENTIAL);
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
+	private final PlayerQueue queue;
 
 	public DlnaPlayer (final int id, final RemoteService avTransportSvc, final PlayerRegister register, final ControlPoint controlPoint, final MediaServer mediaServer) {
 		this.playerId = id;
@@ -45,6 +47,7 @@ public class DlnaPlayer implements Player {
 		this.register = register;
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
+		this.queue = new DefaultPlayerQueue();
 	}
 
 	private void checkAlive () {
@@ -136,7 +139,21 @@ public class DlnaPlayer implements Player {
 	@Override
 	public void nextTrack () {
 		checkAlive();
-		System.err.println("TODO: next");
+		final PlayItem nextItemToPlay = getNextItemToPlay();
+		if (nextItemToPlay != null) loadAndStartPlaying(nextItemToPlay);
+	}
+
+	private PlayItem getNextItemToPlay () {
+		final PlayItem queueItem = this.queue.takeFromQueue();
+		if (queueItem != null) return queueItem;
+
+		final PlayItem lastItem = getCurrentItem();
+		if (lastItem == null || lastItem.list == null) return null;
+
+		final IMediaTrack nextTrack = OrderHelper.getNextTrack(lastItem.list, lastItem.item, this.playbackOrder.get());
+		if (nextTrack != null) return new PlayItem(lastItem.list, nextTrack);
+
+		return null;
 	}
 
 	@Override
@@ -214,68 +231,8 @@ public class DlnaPlayer implements Player {
 	}
 
 	@Override
-	public void addToQueue (final PlayItem item) {
-		System.err.println("TODO: add to queue: " + item);
-	}
-
-	@Override
-	public void addToQueue (final List<PlayItem> items) {
-		System.err.println("TODO: add to queue: " + items);
-	}
-
-	@Override
-	public void removeFromQueue (final PlayItem item) {
-		System.err.println("TODO: remove from queue: " + item);
-	}
-
-	@Override
-	public void clearQueue () {
-		System.err.println("TODO: clear queue");
-	}
-
-	@Override
-	public void moveInQueue (final List<PlayItem> items, final boolean moveDown) {
-		System.err.println("TODO: move in queue");
-	}
-
-	@Override
-	public void moveInQueueEnd (final List<PlayItem> items, final boolean toBottom) {
-		System.err.println("TODO: move to end of queue");
-	}
-
-	@Override
-	public List<PlayItem> getQueueList () {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public void setQueueList (final List<PlayItem> items) {
-		System.err.println("TODO: set queue list");
-	}
-
-	@Override
-	public void shuffleQueue () {
-		System.err.println("TODO: shuffle queue");
-	}
-
-	@Override
-	public DurationData getQueueTotalDuration () {
-		return new DurationData() {
-			@Override
-			public boolean isComplete () {
-				return true;
-			}
-
-			@Override
-			public long getDuration () {
-				return 0;
-			}
-		};
-	}
-
-	@Override
-	public PlayItem getQueueItemById (final int id) {
-		return null;
+	public PlayerQueue getQueue () {
+		return this.queue;
 	}
 
 	@Override
