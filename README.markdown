@@ -1,8 +1,15 @@
 Morrigan DLNA
 =============
 
-References
-----------
+A plugin for [Morrigan](https://github.com/haku/Morrigan).
+Adds support for playback via DLNA endpoints.
+
+Build
+-----
+`mvn clean install`
+
+Dev References
+--------------
 
 - http://wiki.eclipse.org/Tycho/Reference_Card
 - http://dev.eclipse.org/mhonarc/lists/tycho-user/msg00173.html
