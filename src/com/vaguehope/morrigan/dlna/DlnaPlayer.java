@@ -212,7 +212,7 @@ public class DlnaPlayer implements Player {
 	@Override
 	public void seekTo (final double d) {
 		checkAlive();
-		System.err.println("TODO: seek: " + d);
+		this.avTransport.seek((long) (getCurrentTrackDuration() * d));
 	}
 
 	@Override
@@ -242,7 +242,7 @@ public class DlnaPlayer implements Player {
 
 	@Override
 	public void goFullscreen (final int monitor) {
-		System.err.println("TODO: Go full screen on monitor " + monitor + ".");
+		// Should never be called as getMontors() always returns nothing.
 	}
 
 }

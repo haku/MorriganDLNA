@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.teleal.cling.controlpoint.ControlPoint;
+import org.teleal.cling.model.ModelUtil;
 import org.teleal.cling.model.action.ActionInvocation;
 import org.teleal.cling.model.message.UpnpResponse;
 import org.teleal.cling.model.meta.RemoteService;
@@ -12,6 +13,7 @@ import org.teleal.cling.support.avtransport.callback.GetPositionInfo;
 import org.teleal.cling.support.avtransport.callback.GetTransportInfo;
 import org.teleal.cling.support.avtransport.callback.Pause;
 import org.teleal.cling.support.avtransport.callback.Play;
+import org.teleal.cling.support.avtransport.callback.Seek;
 import org.teleal.cling.support.avtransport.callback.SetAVTransportURI;
 import org.teleal.cling.support.avtransport.callback.Stop;
 import org.teleal.cling.support.model.PositionInfo;
@@ -135,6 +137,24 @@ public class AvTransport {
 		});
 		await(cdl, "get position info for transport '" + this.avTransport + "'.");
 		return ref.get();
+	}
+
+	public void seek (final long seconds) {
+		final String time = ModelUtil.toTimeString(seconds);
+		final CountDownLatch cdl = new CountDownLatch(1);
+		this.controlPoint.execute(new Seek(this.avTransport, time) {
+			@Override
+			public void success (final ActionInvocation invocation) {
+				cdl.countDown();
+			}
+
+			@Override
+			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
+				System.err.println("Failed to seek to " + time + ": " + defaultMsg);
+				cdl.countDown();
+			}
+		});
+		await(cdl, "seek to " + time + " on transport '" + this.avTransport + "'.");
 	}
 
 	private static void await (final CountDownLatch cdl, final String msg) {
