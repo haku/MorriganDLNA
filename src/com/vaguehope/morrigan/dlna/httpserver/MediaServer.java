@@ -46,9 +46,16 @@ public class MediaServer {
 		}
 	}
 
+	public static String idForFile (final File file) {
+		return HashHelper.sha1(file.getAbsolutePath()) + "-" + file.getName().replaceAll("[^a-zA-Z0-9]", "_");
+	}
+
 	public String uriForFile (final File file) {
+		return uriForFile(idForFile(file), file);
+	}
+
+	public String uriForFile (final String id, final File file) {
 		final String externalHttpUrl = getExternalHttpUrl();
-		final String id = HashHelper.sha1(file.getAbsolutePath()) + "-" + file.getName().replaceAll("[^a-zA-Z0-9]", "_");
 		this.files.put(id, file);
 		return externalHttpUrl + "/" + id;
 	}

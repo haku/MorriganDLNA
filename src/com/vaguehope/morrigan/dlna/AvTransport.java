@@ -1,5 +1,7 @@
 package com.vaguehope.morrigan.dlna;
 
+import java.io.File;
+import java.net.URI;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -17,9 +19,19 @@ import org.teleal.cling.support.avtransport.callback.Play;
 import org.teleal.cling.support.avtransport.callback.Seek;
 import org.teleal.cling.support.avtransport.callback.SetAVTransportURI;
 import org.teleal.cling.support.avtransport.callback.Stop;
+import org.teleal.cling.support.contentdirectory.DIDLParser;
+import org.teleal.cling.support.model.DIDLContent;
+import org.teleal.cling.support.model.DIDLObject;
 import org.teleal.cling.support.model.MediaInfo;
 import org.teleal.cling.support.model.PositionInfo;
+import org.teleal.cling.support.model.Res;
 import org.teleal.cling.support.model.TransportInfo;
+import org.teleal.cling.support.model.item.AudioItem;
+import org.teleal.cling.support.model.item.ImageItem;
+import org.teleal.cling.support.model.item.Item;
+import org.teleal.cling.support.model.item.VideoItem;
+
+import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class AvTransport {
 
@@ -33,9 +45,10 @@ public class AvTransport {
 		this.avTransport = avTransportSvc;
 	}
 
-	public void setUri (final String uri) {
+	public void setUri (final String id, final String uri, final String title, final File file, final String coverArtUri) {
+		final String metadata = metadataFor(id, uri, title, file, coverArtUri);
 		final CountDownLatch cdl = new CountDownLatch(1);
-		this.controlPoint.execute(new SetAVTransportURI(this.avTransport, uri) {
+		this.controlPoint.execute(new SetAVTransportURI(this.avTransport, uri, metadata) {
 			@Override
 			public void success (final ActionInvocation invocation) {
 				cdl.countDown();
@@ -48,6 +61,36 @@ public class AvTransport {
 			}
 		});
 		await(cdl, "set URI '" + uri + "' on transport '" + this.avTransport + "'.");
+	}
+
+	private static String metadataFor (final String id, final String uri, final String title, final File file, final String coverArtUri) {
+		final MediaFormat mf = MediaFormat.identify(file);
+		if (mf == null) return null;
+		final Res res = new Res(mf.getMimeType(), Long.valueOf(file.length()), uri);
+		final Item item;
+		switch (mf.getContentGroup()) {
+			case VIDEO:
+				item = new VideoItem(id, "", title, "", res);
+				break;
+			case IMAGE:
+				item = new ImageItem(id, "", title, "", res);
+				break;
+			case AUDIO:
+				item = new AudioItem(id, "", title, "", res);
+				break;
+			default:
+				return null;
+		}
+		if (coverArtUri != null) item.addProperty(new DIDLObject.Property.UPNP.ALBUM_ART_URI(URI.create(coverArtUri)));
+		final DIDLContent didl = new DIDLContent();
+		didl.addItem(item);
+		try {
+			return new DIDLParser().generate(didl);
+		}
+		catch (final Exception e) {
+			System.err.println("Failed to generate metedata: " + ErrorHelper.getCauseTrace(e));
+			return null;
+		}
 	}
 
 	public void play () {

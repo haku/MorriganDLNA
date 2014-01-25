@@ -58,7 +58,7 @@ public class DlnaPlayer implements Player {
 		try {
 			this.playbackOrder.set(new ServerConfig().getPlaybackOrder()); // TODO share this.
 		}
-		catch (IOException e) {
+		catch (final IOException e) {
 			System.err.println("Failed to read server config: " + ErrorHelper.getCauseTrace(e));
 		}
 	}
@@ -118,9 +118,12 @@ public class DlnaPlayer implements Player {
 			final File file = new File(item.item.getFilepath());
 			if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath());
 			stopPlaying();
-			String uri = this.mediaServer.uriForFile(file);
-			System.err.println("loading: " + uri);
-			this.avTransport.setUri(uri);
+			final String id = MediaServer.idForFile(file);
+			System.err.println("loading: " + id);
+			final String uri = this.mediaServer.uriForFile(id, file);
+			final File coverArt = item.item.findCoverArt();
+			final String coverArtUri = coverArt != null ? this.mediaServer.uriForFile(coverArt) : null;
+			this.avTransport.setUri(id, uri, item.item.getTitle(), file, coverArtUri);
 			this.currentUri.set(uri);
 			this.avTransport.play();
 			this.currentItem.set(item);
