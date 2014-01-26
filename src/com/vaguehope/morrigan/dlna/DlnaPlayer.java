@@ -129,7 +129,7 @@ public class DlnaPlayer implements Player {
 				this.currentUri.set(uri);
 				this.avTransport.play();
 				this.currentItem.set(item);
-				startWatcher(uri);
+				startWatcher(uri, item);
 			}
 		}
 		catch (final Exception e) {
@@ -137,23 +137,25 @@ public class DlnaPlayer implements Player {
 		}
 	}
 
-	private void startWatcher (final String uri) {
+	private void startWatcher (final String uri, final PlayItem item) {
 		final WatcherTask oldWatcher = this.watcher.getAndSet(null);
 		if (oldWatcher != null) oldWatcher.cancel();
 
-		final WatcherTask task = WatcherTask.schedule(this.scheduledExecutor, uri, this.currentUri, this.avTransport, this.onEndOfTrack);
+		final WatcherTask task = WatcherTask.schedule(this.scheduledExecutor, uri, this.currentUri, this.avTransport,
+				new OnTrackStarted(this, item), new OnTrackComplete(this, item));
 		if (!this.watcher.compareAndSet(null, task)) {
 			task.cancel();
 			System.err.println("Failed to configure watcher as another got there first.");
 		}
 	}
 
-	private final Runnable onEndOfTrack = new Runnable() {
-		@Override
-		public void run () {
-			nextTrack();
-		}
-	};
+	protected void recordTrackStarted (final PlayItem item) {
+		this.scheduledExecutor.execute(new RecordTrackStarted(item));
+	}
+
+	protected void recordTrackCompleted (final PlayItem item) {
+		this.scheduledExecutor.execute(new RecordTrackCompleted(item));
+	}
 
 	@Override
 	public void pausePlaying () {

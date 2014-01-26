@@ -7,14 +7,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.teleal.cling.support.model.MediaInfo;
+import org.teleal.cling.support.model.PositionInfo;
 import org.teleal.cling.support.model.TransportInfo;
 import org.teleal.cling.support.model.TransportState;
 import org.teleal.cling.support.model.TransportStatus;
 
 final class WatcherTask implements Runnable {
 
-	public static WatcherTask schedule (final ScheduledExecutorService scheduledExecutor, final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport, final Runnable onEndOfTrack) {
-		final WatcherTask task = new WatcherTask(uriToWatch, currentUri, avTransport, onEndOfTrack);
+	private static final int COUNTS_AS_STARTED_SECONDS = 5;
+
+	public static WatcherTask schedule (final ScheduledExecutorService scheduledExecutor, final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
+		final WatcherTask task = new WatcherTask(uriToWatch, currentUri, avTransport, onStartOfTrack, onEndOfTrack);
 		final ScheduledFuture<?> scheduledFuture = scheduledExecutor.scheduleWithFixedDelay(task, 1, 1, TimeUnit.SECONDS);
 		task.setFuture(scheduledFuture);
 		return task;
@@ -23,14 +26,19 @@ final class WatcherTask implements Runnable {
 	private final String uriToWatch;
 	private final AtomicReference<String> currentUri;
 	private final AvTransport avTransport;
+	private final Runnable onStartOfTrack;
 	private final Runnable onEndOfTrack;
+
+	private final AtomicBoolean trackStarted = new AtomicBoolean(false);
 	private final AtomicBoolean trackEnded = new AtomicBoolean(false);
+
 	private ScheduledFuture<?> scheduledFuture;
 
-	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport, final Runnable onEndOfTrack) {
+	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
 		this.uriToWatch = uriToWatch;
 		this.currentUri = currentUri;
 		this.avTransport = avTransport;
+		this.onStartOfTrack = onStartOfTrack;
 		this.onEndOfTrack = onEndOfTrack;
 	}
 
@@ -42,6 +50,11 @@ final class WatcherTask implements Runnable {
 
 	@Override
 	public void run () {
+		if (this.trackEnded.get()) {
+			cancel();
+			return;
+		}
+
 		final String uri = this.currentUri.get();
 		if (!this.uriToWatch.equals(uri)) { // Player is playing a different track.
 			cancel();
@@ -61,11 +74,33 @@ final class WatcherTask implements Runnable {
 			cancel();
 			return;
 		}
-		if (ti.getCurrentTransportStatus() == TransportStatus.OK && ti.getCurrentTransportState() == TransportState.STOPPED) {
+
+		if (ti.getCurrentTransportStatus() != TransportStatus.OK) return;
+
+		if (ti.getCurrentTransportState() == TransportState.STOPPED) {
 			System.err.println("finished: " + uri);
-			if (this.trackEnded.compareAndSet(false, true)) this.onEndOfTrack.run();
+			callEndOfTrack();
 			cancel();
 		}
+
+		if (!this.trackStarted.get()) {
+			final PositionInfo pi = this.avTransport.getPositionInfo();
+			if (pi == null) {
+				System.err.println("Failed to read position info.");
+			}
+			else if (pi.getTrackElapsedSeconds() > COUNTS_AS_STARTED_SECONDS) {
+				callStartOfTrack();
+			}
+		}
+	}
+
+	private void callStartOfTrack () {
+		if (this.trackStarted.compareAndSet(false, true)) this.onStartOfTrack.run();
+	}
+
+	private void callEndOfTrack () {
+		callStartOfTrack();
+		if (this.trackEnded.compareAndSet(false, true)) this.onEndOfTrack.run();
 	}
 
 	private void setFuture (final ScheduledFuture<?> scheduledFuture) {
