@@ -41,6 +41,7 @@ public class DlnaPlayer implements Player {
 	private final ScheduledExecutorService scheduledExecutor;
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
+	private final Object[] loadLock = new Object[] {};
 	private final AtomicReference<PlaybackOrder> playbackOrder = new AtomicReference<PlaybackOrder>(PlaybackOrder.SEQUENTIAL);
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
 	private final AtomicReference<String> currentUri = new AtomicReference<String>();
@@ -117,17 +118,19 @@ public class DlnaPlayer implements Player {
 		try {
 			final File file = new File(item.item.getFilepath());
 			if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath());
-			stopPlaying();
 			final String id = MediaServer.idForFile(file);
-			System.err.println("loading: " + id);
 			final String uri = this.mediaServer.uriForFile(id, file);
 			final File coverArt = item.item.findCoverArt();
 			final String coverArtUri = coverArt != null ? this.mediaServer.uriForFile(coverArt) : null;
-			this.avTransport.setUri(id, uri, item.item.getTitle(), file, coverArtUri);
-			this.currentUri.set(uri);
-			this.avTransport.play();
-			this.currentItem.set(item);
-			startWatcher(uri);
+			synchronized (this.loadLock) {
+				System.err.println("loading: " + id);
+				stopPlaying();
+				this.avTransport.setUri(id, uri, item.item.getTitle(), file, coverArtUri);
+				this.currentUri.set(uri);
+				this.avTransport.play();
+				this.currentItem.set(item);
+				startWatcher(uri);
+			}
 		}
 		catch (final Exception e) {
 			System.err.println("Failed to start playback: " + ErrorHelper.getCauseTrace(e));
@@ -220,13 +223,11 @@ public class DlnaPlayer implements Player {
 
 	@Override
 	public PlayItem getCurrentItem () {
-		checkAlive();
 		return this.currentItem.get();
 	}
 
 	@Override
 	public IMediaTrackList<? extends IMediaTrack> getCurrentList () {
-		checkAlive();
 		final PlayItem item = this.currentItem.get();
 		return item == null ? null : item.list;
 	}
