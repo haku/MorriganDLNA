@@ -96,6 +96,11 @@ public class DlnaPlayer implements Player {
 	}
 
 	@Override
+	public boolean isDisposed () {
+		return !this.alive.get();
+	}
+
+	@Override
 	public boolean isPlaybackEngineReady () {
 		return this.alive.get();
 	}
