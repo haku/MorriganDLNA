@@ -12,12 +12,21 @@ import org.teleal.cling.support.model.TransportInfo;
 import org.teleal.cling.support.model.TransportState;
 import org.teleal.cling.support.model.TransportStatus;
 
+import com.vaguehope.morrigan.player.Player.PlayerEventListener;
+
 final class WatcherTask implements Runnable {
 
 	private static final int COUNTS_AS_STARTED_SECONDS = 5;
 
-	public static WatcherTask schedule (final ScheduledExecutorService scheduledExecutor, final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
-		final WatcherTask task = new WatcherTask(uriToWatch, currentUri, avTransport, onStartOfTrack, onEndOfTrack);
+	public static WatcherTask schedule (
+			final ScheduledExecutorService scheduledExecutor,
+			final String uriToWatch,
+			final AtomicReference<String> currentUri,
+			final AvTransport avTransport,
+			final PlayerEventListener listener,
+			final Runnable onStartOfTrack, final Runnable onEndOfTrack
+			) {
+		final WatcherTask task = new WatcherTask(uriToWatch, currentUri, avTransport, listener, onStartOfTrack, onEndOfTrack);
 		final ScheduledFuture<?> scheduledFuture = scheduledExecutor.scheduleWithFixedDelay(task, 1, 1, TimeUnit.SECONDS);
 		task.setFuture(scheduledFuture);
 		return task;
@@ -26,6 +35,7 @@ final class WatcherTask implements Runnable {
 	private final String uriToWatch;
 	private final AtomicReference<String> currentUri;
 	private final AvTransport avTransport;
+	private final PlayerEventListener listener;
 	private final Runnable onStartOfTrack;
 	private final Runnable onEndOfTrack;
 
@@ -34,10 +44,12 @@ final class WatcherTask implements Runnable {
 
 	private ScheduledFuture<?> scheduledFuture;
 
-	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
+	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport,
+			final PlayerEventListener listener, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
 		this.uriToWatch = uriToWatch;
 		this.currentUri = currentUri;
 		this.avTransport = avTransport;
+		this.listener = listener;
 		this.onStartOfTrack = onStartOfTrack;
 		this.onEndOfTrack = onEndOfTrack;
 	}
@@ -64,11 +76,13 @@ final class WatcherTask implements Runnable {
 		final MediaInfo mi = this.avTransport.getMediaInfo();
 		final String remoteUri = mi.getCurrentURI();
 		if (!uri.equals(remoteUri)) { // Renderer is playing a different track.
+			this.listener.currentItemChanged(null); // TODO parse currentURIMetadata and create mock item with track title?
 			cancel();
 			return;
 		}
 
 		final TransportInfo ti = this.avTransport.getTransportInfo();
+		this.listener.playStateChanged(DlnaPlayer.transportIntoToPlayState(ti));
 		if (ti == null) {
 			System.err.println("Failed to read transport info.");
 			cancel();
@@ -87,9 +101,11 @@ final class WatcherTask implements Runnable {
 			final PositionInfo pi = this.avTransport.getPositionInfo();
 			if (pi == null) {
 				System.err.println("Failed to read position info.");
+				this.listener.positionChanged(0, 0);
 			}
-			else if (pi.getTrackElapsedSeconds() > COUNTS_AS_STARTED_SECONDS) {
-				callStartOfTrack();
+			else {
+				this.listener.positionChanged(pi.getTrackElapsedSeconds(), (int) pi.getTrackDurationSeconds());
+				if (pi.getTrackElapsedSeconds() > COUNTS_AS_STARTED_SECONDS) callStartOfTrack();
 			}
 		}
 	}

@@ -26,6 +26,7 @@ import com.vaguehope.morrigan.player.OrderHelper;
 import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.Player;
+import com.vaguehope.morrigan.player.PlayerEventListenerCaller;
 import com.vaguehope.morrigan.player.PlayerQueue;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.server.ServerConfig;
@@ -47,6 +48,7 @@ public class DlnaPlayer implements Player {
 	private final AtomicReference<String> currentUri = new AtomicReference<String>();
 	private final PlayerQueue queue;
 	private final AtomicReference<WatcherTask> watcher = new AtomicReference<WatcherTask>(null);
+	private final PlayerEventListenerCaller listeners = new PlayerEventListenerCaller();
 
 	public DlnaPlayer (final int id, final PlayerRegister register, final ControlPoint controlPoint, final RemoteService avTransportSvc, final MediaServer mediaServer, final ScheduledExecutorService scheduledExecutor) {
 		this.playerId = id;
@@ -106,6 +108,16 @@ public class DlnaPlayer implements Player {
 	}
 
 	@Override
+	public void addEventListener (final PlayerEventListener listener) {
+		this.listeners.addEventListener(listener);
+	}
+
+	@Override
+	public void removeEventListener (final PlayerEventListener listener) {
+		this.listeners.removeEventListener(listener);
+	}
+
+	@Override
 	public void loadAndStartPlaying (final IMediaTrackList<? extends IMediaTrack> list) {
 		final IMediaTrack nextTrack = OrderHelper.getNextTrack(list, null, this.playbackOrder.get());
 		loadAndStartPlaying(list, nextTrack);
@@ -135,6 +147,7 @@ public class DlnaPlayer implements Player {
 				this.avTransport.play();
 				this.currentItem.set(item);
 				startWatcher(uri, item);
+				this.listeners.currentItemChanged(item);
 			}
 		}
 		catch (final Exception e) {
@@ -147,6 +160,7 @@ public class DlnaPlayer implements Player {
 		if (oldWatcher != null) oldWatcher.cancel();
 
 		final WatcherTask task = WatcherTask.schedule(this.scheduledExecutor, uri, this.currentUri, this.avTransport,
+				this.listeners,
 				new OnTrackStarted(this, item), new OnTrackComplete(this, item));
 		if (!this.watcher.compareAndSet(null, task)) {
 			task.cancel();
@@ -208,24 +222,7 @@ public class DlnaPlayer implements Player {
 	public PlayState getPlayState () {
 		checkAlive();
 		final TransportInfo ti = this.avTransport.getTransportInfo();
-		if (ti == null) return PlayState.STOPPED;
-		if (ti.getCurrentTransportStatus() == TransportStatus.OK) {
-			switch (ti.getCurrentTransportState()) {
-				case PLAYING:
-				case RECORDING:
-					return PlayState.PLAYING;
-				case PAUSED_PLAYBACK:
-				case PAUSED_RECORDING:
-					return PlayState.PAUSED;
-				case TRANSITIONING:
-				case CUSTOM:
-					return PlayState.LOADING;
-				case STOPPED:
-				case NO_MEDIA_PRESENT:
-					return PlayState.STOPPED;
-			}
-		}
-		return PlayState.STOPPED;
+		return transportIntoToPlayState(ti);
 	}
 
 	@Override
@@ -269,6 +266,7 @@ public class DlnaPlayer implements Player {
 	@Override
 	public void setPlaybackOrder (final PlaybackOrder order) {
 		this.playbackOrder.set(order);
+		this.listeners.playOrderChanged(order);
 	}
 
 	@Override
@@ -289,6 +287,27 @@ public class DlnaPlayer implements Player {
 	@Override
 	public void goFullscreen (final int monitor) {
 		// Should never be called as getMontors() always returns nothing.
+	}
+
+	public static PlayState transportIntoToPlayState (final TransportInfo ti) {
+		if (ti == null) return PlayState.STOPPED;
+		if (ti.getCurrentTransportStatus() == TransportStatus.OK) {
+			switch (ti.getCurrentTransportState()) {
+				case PLAYING:
+				case RECORDING:
+					return PlayState.PLAYING;
+				case PAUSED_PLAYBACK:
+				case PAUSED_RECORDING:
+					return PlayState.PAUSED;
+				case TRANSITIONING:
+				case CUSTOM:
+					return PlayState.LOADING;
+				case STOPPED:
+				case NO_MEDIA_PRESENT:
+					return PlayState.STOPPED;
+			}
+		}
+		return PlayState.STOPPED;
 	}
 
 }
