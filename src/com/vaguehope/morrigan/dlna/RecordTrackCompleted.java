@@ -14,7 +14,7 @@ final class RecordTrackCompleted implements Runnable {
 	@Override
 	public void run () {
 		try {
-			this.item.list.incTrackEndCnt(this.item.item);
+			this.item.getList().incTrackEndCnt(this.item.getTrack());
 		}
 		catch (final Exception e) { // NOSONAR no other way to report errors.
 			System.err.println("Failed to increment track end count: " + ErrorHelper.getCauseTrace(e));

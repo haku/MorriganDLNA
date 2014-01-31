@@ -62,11 +62,11 @@ public class DlnaPlayer extends AbstractPlayer {
 	protected void loadAndStartPlaying (final PlayItem item, final File file) throws Exception {
 		final String id = MediaServer.idForFile(file);
 		final String uri = this.mediaServer.uriForFile(id, file);
-		final File coverArt = item.item.findCoverArt();
+		final File coverArt = item.getTrack().findCoverArt();
 		final String coverArtUri = coverArt != null ? this.mediaServer.uriForFile(coverArt) : null;
 		System.err.println("loading: " + id);
 		stopPlaying();
-		this.avTransport.setUri(id, uri, item.item.getTitle(), file, coverArtUri);
+		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), file, coverArtUri);
 		this.currentUri.set(uri);
 		this.avTransport.play();
 		this.currentItem.set(item);
@@ -128,10 +128,10 @@ public class DlnaPlayer extends AbstractPlayer {
 		if (queueItem != null) return queueItem;
 
 		final PlayItem lastItem = getCurrentItem();
-		if (lastItem == null || lastItem.list == null) return null;
+		if (lastItem == null || !lastItem.hasList()) return null;
 
-		final IMediaTrack nextTrack = OrderHelper.getNextTrack(lastItem.list, lastItem.item, getPlaybackOrder());
-		if (nextTrack != null) return new PlayItem(lastItem.list, nextTrack);
+		final IMediaTrack nextTrack = OrderHelper.getNextTrack(lastItem.getList(), lastItem.getTrack(), getPlaybackOrder());
+		if (nextTrack != null) return new PlayItem(lastItem.getList(), nextTrack);
 
 		return null;
 	}
@@ -151,7 +151,7 @@ public class DlnaPlayer extends AbstractPlayer {
 	@Override
 	public IMediaTrackList<? extends IMediaTrack> getCurrentList () {
 		final PlayItem item = this.currentItem.get();
-		return item == null ? null : item.list;
+		return item == null ? null : item.getList();
 	}
 
 	@Override

@@ -14,7 +14,7 @@ final class RecordTrackStarted implements Runnable {
 	@Override
 	public void run () {
 		try {
-			this.item.list.incTrackStartCnt(this.item.item);
+			this.item.getList().incTrackStartCnt(this.item.getTrack());
 		}
 		catch (final Exception e) { // NOSONAR no other way to report errors.
 			System.err.println("Failed to increment track start count: " + ErrorHelper.getCauseTrace(e));
