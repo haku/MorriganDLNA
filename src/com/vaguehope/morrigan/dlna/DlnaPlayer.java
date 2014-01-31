@@ -1,13 +1,11 @@
 package com.vaguehope.morrigan.dlna;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.teleal.cling.controlpoint.ControlPoint;
@@ -18,141 +16,61 @@ import org.teleal.cling.support.model.TransportStatus;
 
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
-import com.vaguehope.morrigan.model.Register;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
-import com.vaguehope.morrigan.player.DefaultPlayerQueue;
+import com.vaguehope.morrigan.player.AbstractPlayer;
 import com.vaguehope.morrigan.player.OrderHelper;
-import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
-import com.vaguehope.morrigan.player.Player;
-import com.vaguehope.morrigan.player.PlayerEventListenerCaller;
-import com.vaguehope.morrigan.player.PlayerQueue;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.server.ServerConfig;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
-public class DlnaPlayer implements Player {
+public class DlnaPlayer extends AbstractPlayer {
 
-	private final int playerId;
-	private final String playerName;
 	private final AvTransport avTransport;
-	private final Register<Player> register;
 	private final MediaServer mediaServer;
 	private final ScheduledExecutorService scheduledExecutor;
 
-	private final AtomicBoolean alive = new AtomicBoolean(true);
-	private final Object[] loadLock = new Object[] {};
-	private final AtomicReference<PlaybackOrder> playbackOrder = new AtomicReference<PlaybackOrder>(PlaybackOrder.SEQUENTIAL);
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
 	private final AtomicReference<String> currentUri = new AtomicReference<String>();
-	private final PlayerQueue queue;
 	private final AtomicReference<WatcherTask> watcher = new AtomicReference<WatcherTask>(null);
-	private final PlayerEventListenerCaller listeners = new PlayerEventListenerCaller();
 
 	public DlnaPlayer (final int id, final PlayerRegister register, final ControlPoint controlPoint, final RemoteService avTransportSvc, final MediaServer mediaServer, final ScheduledExecutorService scheduledExecutor) {
-		this.playerId = id;
-		this.playerName = avTransportSvc.getDevice().getDetails().getFriendlyName();
-		this.register = register;
+		super(id, avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
 		this.scheduledExecutor = scheduledExecutor;
-		this.queue = new DefaultPlayerQueue();
 		try {
-			this.playbackOrder.set(new ServerConfig().getPlaybackOrder()); // TODO share this.
+			setPlaybackOrder(new ServerConfig().getPlaybackOrder()); // TODO share this.
 		}
 		catch (final IOException e) {
 			System.err.println("Failed to read server config: " + ErrorHelper.getCauseTrace(e));
 		}
 	}
 
-	private void checkAlive () {
-		if (!this.alive.get()) throw new IllegalStateException("Player is disposed: " + toString());
-	}
-
 	@Override
-	public String toString () {
-		return new StringBuilder("DlnaPlayer{")
-				.append("id=").append(getId())
-				.append(" name=").append(getName())
-				.append(" order=").append(getPlaybackOrder())
-				.append("}").toString();
-	}
-
-	@Override
-	public int getId () {
-		return this.playerId;
-	}
-
-	@Override
-	public String getName () {
-		return this.playerName;
-	}
-
-	@Override
-	public void dispose () {
-		if (this.alive.compareAndSet(true, false)) {
-			this.register.unregister(this);
-			System.err.println("Disposed player: " + toString());
-		}
-	}
-
-	@Override
-	public boolean isDisposed () {
-		return !this.alive.get();
+	protected void onDispose () {
+		System.err.println("Disposed player: " + toString());
 	}
 
 	@Override
 	public boolean isPlaybackEngineReady () {
-		return this.alive.get();
+		return !isDisposed();
 	}
 
 	@Override
-	public void addEventListener (final PlayerEventListener listener) {
-		this.listeners.addEventListener(listener);
-	}
-
-	@Override
-	public void removeEventListener (final PlayerEventListener listener) {
-		this.listeners.removeEventListener(listener);
-	}
-
-	@Override
-	public void loadAndStartPlaying (final IMediaTrackList<? extends IMediaTrack> list) {
-		final IMediaTrack nextTrack = OrderHelper.getNextTrack(list, null, this.playbackOrder.get());
-		loadAndStartPlaying(list, nextTrack);
-	}
-
-	@Override
-	public void loadAndStartPlaying (final IMediaTrackList<? extends IMediaTrack> list, final IMediaTrack track) {
-		if (track == null) throw new IllegalArgumentException("track must not be null.");
-		loadAndStartPlaying(new PlayItem(list, track));
-	}
-
-	@Override
-	public void loadAndStartPlaying (final PlayItem item) {
-		checkAlive();
-		try {
-			final File file = new File(item.item.getFilepath());
-			if (!file.exists()) throw new FileNotFoundException(file.getAbsolutePath());
-			final String id = MediaServer.idForFile(file);
-			final String uri = this.mediaServer.uriForFile(id, file);
-			final File coverArt = item.item.findCoverArt();
-			final String coverArtUri = coverArt != null ? this.mediaServer.uriForFile(coverArt) : null;
-			synchronized (this.loadLock) {
-				System.err.println("loading: " + id);
-				stopPlaying();
-				this.avTransport.setUri(id, uri, item.item.getTitle(), file, coverArtUri);
-				this.currentUri.set(uri);
-				this.avTransport.play();
-				this.currentItem.set(item);
-				startWatcher(uri, item);
-				this.listeners.currentItemChanged(item);
-			}
-		}
-		catch (final Exception e) {
-			System.err.println("Failed to start playback: " + ErrorHelper.getCauseTrace(e));
-		}
+	protected void loadAndStartPlaying (final PlayItem item, final File file) throws Exception {
+		final String id = MediaServer.idForFile(file);
+		final String uri = this.mediaServer.uriForFile(id, file);
+		final File coverArt = item.item.findCoverArt();
+		final String coverArtUri = coverArt != null ? this.mediaServer.uriForFile(coverArt) : null;
+		System.err.println("loading: " + id);
+		stopPlaying();
+		this.avTransport.setUri(id, uri, item.item.getTitle(), file, coverArtUri);
+		this.currentUri.set(uri);
+		this.avTransport.play();
+		this.currentItem.set(item);
+		startWatcher(uri, item);
 	}
 
 	private void startWatcher (final String uri, final PlayItem item) {
@@ -160,7 +78,7 @@ public class DlnaPlayer implements Player {
 		if (oldWatcher != null) oldWatcher.cancel();
 
 		final WatcherTask task = WatcherTask.schedule(this.scheduledExecutor, uri, this.currentUri, this.avTransport,
-				this.listeners,
+				getListeners(),
 				new OnTrackStarted(this, item), new OnTrackComplete(this, item));
 		if (!this.watcher.compareAndSet(null, task)) {
 			task.cancel();
@@ -206,13 +124,13 @@ public class DlnaPlayer implements Player {
 	}
 
 	private PlayItem getNextItemToPlay () {
-		final PlayItem queueItem = this.queue.takeFromQueue();
+		final PlayItem queueItem = this.getQueue().takeFromQueue();
 		if (queueItem != null) return queueItem;
 
 		final PlayItem lastItem = getCurrentItem();
 		if (lastItem == null || lastItem.list == null) return null;
 
-		final IMediaTrack nextTrack = OrderHelper.getNextTrack(lastItem.list, lastItem.item, this.playbackOrder.get());
+		final IMediaTrack nextTrack = OrderHelper.getNextTrack(lastItem.list, lastItem.item, getPlaybackOrder());
 		if (nextTrack != null) return new PlayItem(lastItem.list, nextTrack);
 
 		return null;
@@ -259,24 +177,8 @@ public class DlnaPlayer implements Player {
 	}
 
 	@Override
-	public PlaybackOrder getPlaybackOrder () {
-		return this.playbackOrder.get();
-	}
-
-	@Override
-	public void setPlaybackOrder (final PlaybackOrder order) {
-		this.playbackOrder.set(order);
-		this.listeners.playOrderChanged(order);
-	}
-
-	@Override
 	public List<PlayItem> getHistory () {
 		return Collections.emptyList();
-	}
-
-	@Override
-	public PlayerQueue getQueue () {
-		return this.queue;
 	}
 
 	@Override
