@@ -101,7 +101,7 @@ final class WatcherTask implements Runnable {
 
 		final PositionInfo pi = this.avTransport.getPositionInfo();
 		if (pi == null) {
-			this.listener.positionChanged(0, 0);
+			this.listener.positionChanged(-1, -1);
 		}
 		else {
 			this.listener.positionChanged(pi.getTrackElapsedSeconds(), (int) pi.getTrackDurationSeconds());

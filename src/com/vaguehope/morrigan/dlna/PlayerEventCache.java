@@ -10,8 +10,8 @@ public class PlayerEventCache implements PlayerEventListener {
 	private volatile PlaybackOrder playbackOrder;
 	private volatile PlayItem currentItem;
 	private volatile PlayState playState;
-	private volatile long position = 0;
-	private volatile int duration = 0;
+	private volatile long position = -1;
+	private volatile int duration = -1;
 
 	@Override
 	public void playOrderChanged (final PlaybackOrder newPlaybackOrder) {
