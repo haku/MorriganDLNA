@@ -87,7 +87,6 @@ final class WatcherTask implements Runnable {
 		final TransportInfo ti = this.avTransport.getTransportInfo();
 		this.listener.playStateChanged(DlnaPlayer.transportIntoToPlayState(ti));
 		if (ti == null) {
-			LOG.info("Failed to read transport info.");
 			cancel();
 			return;
 		}
@@ -100,16 +99,13 @@ final class WatcherTask implements Runnable {
 			cancel();
 		}
 
-		if (!this.trackStarted.get()) {
-			final PositionInfo pi = this.avTransport.getPositionInfo();
-			if (pi == null) {
-				LOG.info("Failed to read position info.");
-				this.listener.positionChanged(0, 0);
-			}
-			else {
-				this.listener.positionChanged(pi.getTrackElapsedSeconds(), (int) pi.getTrackDurationSeconds());
-				if (pi.getTrackElapsedSeconds() > COUNTS_AS_STARTED_SECONDS) callStartOfTrack();
-			}
+		final PositionInfo pi = this.avTransport.getPositionInfo();
+		if (pi == null) {
+			this.listener.positionChanged(0, 0);
+		}
+		else {
+			this.listener.positionChanged(pi.getTrackElapsedSeconds(), (int) pi.getTrackDurationSeconds());
+			if (!this.trackStarted.get() && pi.getTrackElapsedSeconds() > COUNTS_AS_STARTED_SECONDS) callStartOfTrack();
 		}
 	}
 

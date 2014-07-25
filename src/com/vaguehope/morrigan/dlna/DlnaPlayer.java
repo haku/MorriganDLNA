@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.teleal.cling.controlpoint.ControlPoint;
 import org.teleal.cling.model.meta.RemoteService;
-import org.teleal.cling.support.model.PositionInfo;
 import org.teleal.cling.support.model.TransportInfo;
 import org.teleal.cling.support.model.TransportStatus;
 
@@ -34,6 +33,7 @@ public class DlnaPlayer extends AbstractPlayer {
 	private final AvTransport avTransport;
 	private final MediaServer mediaServer;
 	private final ScheduledExecutorService scheduledExecutor;
+	private final PlayerEventCache playerEventCache = new PlayerEventCache();
 
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
 	private final AtomicReference<String> currentUri = new AtomicReference<String>();
@@ -44,6 +44,7 @@ public class DlnaPlayer extends AbstractPlayer {
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
 		this.scheduledExecutor = scheduledExecutor;
+		addEventListener(this.playerEventCache);
 		try {
 			setPlaybackOrder(new ServerConfig().getPlaybackOrder()); // TODO share this.
 		}
@@ -142,9 +143,9 @@ public class DlnaPlayer extends AbstractPlayer {
 
 	@Override
 	public PlayState getPlayState () {
-		checkAlive();
-		final TransportInfo ti = this.avTransport.getTransportInfo();
-		return transportIntoToPlayState(ti);
+		final PlayState ps = this.playerEventCache.getPlayState();
+		if (ps != null) return ps;
+		return PlayState.STOPPED;
 	}
 
 	@Override
@@ -160,18 +161,12 @@ public class DlnaPlayer extends AbstractPlayer {
 
 	@Override
 	public long getCurrentPosition () {
-		checkAlive();
-		final PositionInfo pi = this.avTransport.getPositionInfo();
-		if (pi == null) return 0;
-		return pi.getTrackElapsedSeconds();
+		return this.playerEventCache.getPosition();
 	}
 
 	@Override
 	public int getCurrentTrackDuration () {
-		checkAlive();
-		final PositionInfo pi = this.avTransport.getPositionInfo();
-		if (pi == null) return 0;
-		return (int) pi.getTrackDurationSeconds();
+		return this.playerEventCache.getDuration();
 	}
 
 	@Override
