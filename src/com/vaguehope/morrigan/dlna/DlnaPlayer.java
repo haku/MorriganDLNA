@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.teleal.cling.controlpoint.ControlPoint;
 import org.teleal.cling.model.meta.RemoteService;
 import org.teleal.cling.support.model.PositionInfo;
@@ -27,6 +29,8 @@ import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class DlnaPlayer extends AbstractPlayer {
 
+	private static final Logger LOG = LoggerFactory.getLogger(DlnaPlayer.class);
+
 	private final AvTransport avTransport;
 	private final MediaServer mediaServer;
 	private final ScheduledExecutorService scheduledExecutor;
@@ -44,13 +48,13 @@ public class DlnaPlayer extends AbstractPlayer {
 			setPlaybackOrder(new ServerConfig().getPlaybackOrder()); // TODO share this.
 		}
 		catch (final IOException e) {
-			System.err.println("Failed to read server config: " + ErrorHelper.getCauseTrace(e));
+			LOG.info("Failed to read server config: " + ErrorHelper.getCauseTrace(e));
 		}
 	}
 
 	@Override
 	protected void onDispose () {
-		System.err.println("Disposed player: " + toString());
+		LOG.info("Disposed player: " + toString());
 	}
 
 	@Override
@@ -64,7 +68,7 @@ public class DlnaPlayer extends AbstractPlayer {
 		final String uri = this.mediaServer.uriForFile(id, file);
 		final File coverArt = item.getTrack().findCoverArt();
 		final String coverArtUri = coverArt != null ? this.mediaServer.uriForFile(coverArt) : null;
-		System.err.println("loading: " + id);
+		LOG.info("loading: " + id);
 		stopPlaying();
 		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), file, coverArtUri);
 		this.currentUri.set(uri);
@@ -82,7 +86,7 @@ public class DlnaPlayer extends AbstractPlayer {
 				new OnTrackStarted(this, item), new OnTrackComplete(this, item));
 		if (!this.watcher.compareAndSet(null, task)) {
 			task.cancel();
-			System.err.println("Failed to configure watcher as another got there first.");
+			LOG.info("Failed to configure watcher as another got there first.");
 		}
 	}
 

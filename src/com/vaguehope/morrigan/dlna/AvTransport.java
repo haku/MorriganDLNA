@@ -6,6 +6,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.teleal.cling.controlpoint.ControlPoint;
 import org.teleal.cling.model.ModelUtil;
 import org.teleal.cling.model.action.ActionInvocation;
@@ -36,6 +38,7 @@ import com.vaguehope.morrigan.util.ErrorHelper;
 public class AvTransport {
 
 	private static final int ACTION_TIMEOUT_SECONDS = 10;
+	private static final Logger LOG = LoggerFactory.getLogger(AvTransport.class);
 
 	private final ControlPoint controlPoint;
 	private final RemoteService avTransport;
@@ -56,7 +59,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed to set av transport URI: " + defaultMsg);
+				LOG.info("Failed to set av transport URI: " + defaultMsg);
 				cdl.countDown();
 			}
 		});
@@ -88,7 +91,7 @@ public class AvTransport {
 			return new DIDLParser().generate(didl);
 		}
 		catch (final Exception e) {
-			System.err.println("Failed to generate metedata: " + ErrorHelper.getCauseTrace(e));
+			LOG.info("Failed to generate metedata: " + ErrorHelper.getCauseTrace(e));
 			return null;
 		}
 	}
@@ -103,7 +106,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed to play: " + defaultMsg);
+				LOG.info("Failed to play: " + defaultMsg);
 				cdl.countDown();
 			}
 		});
@@ -120,7 +123,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed to pause: " + defaultMsg);
+				LOG.info("Failed to pause: " + defaultMsg);
 				cdl.countDown();
 			}
 		});
@@ -137,7 +140,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed to stop: " + defaultMsg);
+				LOG.info("Failed to stop: " + defaultMsg);
 				cdl.countDown();
 			}
 		});
@@ -156,7 +159,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed get transport info: " + defaultMsg);
+				LOG.info("Failed get transport info: " + defaultMsg);
 				cdl.countDown();
 			}
 		});
@@ -176,7 +179,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed get position info: " + defaultMsg);
+				LOG.info("Failed get position info: " + defaultMsg);
 				cdl.countDown();
 			}
 		});
@@ -196,7 +199,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed get media info: " + defaultMsg);
+				LOG.info("Failed get media info: " + defaultMsg);
 				cdl.countDown();
 			}
 		});
@@ -215,7 +218,7 @@ public class AvTransport {
 
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				System.err.println("Failed to seek to " + time + ": " + defaultMsg);
+				LOG.info("Failed to seek to " + time + ": " + defaultMsg);
 				cdl.countDown();
 			}
 		});

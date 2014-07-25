@@ -1,9 +1,14 @@
 package com.vaguehope.morrigan.dlna;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
 final class RecordTrackCompleted implements Runnable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(RecordTrackCompleted.class);
 
 	private final PlayItem item;
 
@@ -17,7 +22,7 @@ final class RecordTrackCompleted implements Runnable {
 			this.item.getList().incTrackEndCnt(this.item.getTrack());
 		}
 		catch (final Exception e) { // NOSONAR no other way to report errors.
-			System.err.println("Failed to increment track end count: " + ErrorHelper.getCauseTrace(e));
+			LOG.info("Failed to increment track end count: " + ErrorHelper.getCauseTrace(e));
 		}
 	}
 

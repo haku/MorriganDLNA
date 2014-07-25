@@ -14,10 +14,14 @@ import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jetty.http.HttpHeaders;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.util.resource.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ContentServlet extends DefaultServlet {
 
 	private static final long serialVersionUID = -4819786280597656455L;
+	private static final Logger LOG = LoggerFactory.getLogger(ContentServlet.class);
+
 	private final Map<String, File> files;
 
 	public ContentServlet (final Map<String, File> files) {
@@ -32,10 +36,10 @@ public final class ContentServlet extends DefaultServlet {
 		finally {
 			final String ranges = join(req.getHeaders(HttpHeaders.RANGE), ",");
 			if (ranges != null) {
-				System.err.println("request: " + /* resp.getStatus() + " " + */ req.getRequestURI() + " (r:" + ranges + ")");
+				LOG.info("request: " + /* resp.getStatus() + " " + */ req.getRequestURI() + " (r:" + ranges + ")");
 			}
 			else {
-				System.err.println("request: " + /* resp.getStatus() + " " + */ req.getRequestURI());
+				LOG.info("request: " + /* resp.getStatus() + " " + */ req.getRequestURI());
 			}
 		}
 	}
@@ -48,10 +52,10 @@ public final class ContentServlet extends DefaultServlet {
 			if (file != null) return Resource.newResource(file.toURI());
 		}
 		catch (final MalformedURLException e) {
-			System.err.println("Failed to map resource '" + pathInContext + "': " + e.getMessage());
+			LOG.info("Failed to map resource '" + pathInContext + "': " + e.getMessage());
 		}
 		catch (final IOException e) {
-			System.err.println("Failed to serve resource '" + pathInContext + "': " + e.getMessage());
+			LOG.info("Failed to serve resource '" + pathInContext + "': " + e.getMessage());
 		}
 		return null;
 	}

@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.teleal.cling.controlpoint.ControlPoint;
 import org.teleal.cling.model.meta.RemoteDevice;
 import org.teleal.cling.model.meta.RemoteService;
@@ -20,6 +22,8 @@ import com.vaguehope.morrigan.player.Player;
 import com.vaguehope.morrigan.player.PlayerRegister;
 
 public class PlayerHolder {
+
+	private static final Logger LOG = LoggerFactory.getLogger(PlayerHolder.class);
 
 	private final ControlPoint controlPoint;
 	private final MediaServer mediaServer;
@@ -78,7 +82,7 @@ public class PlayerHolder {
 		for (final Entry<UDN, RemoteService> avT : avTs) {
 			registerAvTransport(avT.getKey(), register, avT.getValue());
 		}
-		System.err.println("Registered " + avTs.size() + " players in " + register + ".");
+		LOG.info("Registered " + avTs.size() + " players in " + register + ".");
 	}
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
@@ -91,7 +95,7 @@ public class PlayerHolder {
 		if (playersFor == null) throw new IllegalStateException();
 		playersFor.add(player);
 
-		System.err.println("Registered player " + player + " for udn=" + udn + " in " + register + ".");
+		LOG.info("Registered player " + player + " for udn=" + udn + " in " + register + ".");
 	}
 
 }
