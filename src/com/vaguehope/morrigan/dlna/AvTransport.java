@@ -63,7 +63,7 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "set URI '" + uri + "' on transport '" + this.avTransport + "'.");
+		await(cdl, "set URI '%s' on transport '%s'.", uri, this.avTransport);
 	}
 
 	private static String metadataFor (final String id, final String uri, final String title, final File file, final String coverArtUri) {
@@ -110,7 +110,7 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "play on transport '" + this.avTransport + "'.");
+		await(cdl, "play on transport '%s'.", this.avTransport);
 	}
 
 	public void pause () {
@@ -127,7 +127,7 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "pause playback on transport '" + this.avTransport + "'.");
+		await(cdl, "pause playback on transport '%s'.", this.avTransport);
 	}
 
 	public void stop () {
@@ -144,7 +144,7 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "stop playback on transport '" + this.avTransport + "'.");
+		await(cdl, "stop playback on transport '%s'.", this.avTransport);
 	}
 
 	public TransportInfo getTransportInfo () {
@@ -163,7 +163,7 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "get playback state for transport '" + this.avTransport + "'.");
+		await(cdl, "get playback state for transport '%s'.", this.avTransport);
 		return ref.get();
 	}
 
@@ -183,7 +183,7 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "get position info for transport '" + this.avTransport + "'.");
+		await(cdl, "get position info for transport '%s'.", this.avTransport);
 		return ref.get();
 	}
 
@@ -203,7 +203,7 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "get media info for transport '" + this.avTransport + "'.");
+		await(cdl, "get media info for transport '%s'.", this.avTransport);
 		return ref.get();
 	}
 
@@ -222,16 +222,16 @@ public class AvTransport {
 				cdl.countDown();
 			}
 		});
-		await(cdl, "seek to " + time + " on transport '" + this.avTransport + "'.");
+		await(cdl, "seek to %s on transport '%s'.", time, this.avTransport);
 	}
 
-	private static void await (final CountDownLatch cdl, final String msg) {
+	private static void await (final CountDownLatch cdl, final String msgFormat, final Object... msgArgs) {
 		try {
 			if (cdl.await(ACTION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) return;
-			throw new IllegalStateException("Timed out while trying to " + msg);
+			throw new IllegalStateException("Timed out while trying to " + String.format(msgFormat, msgArgs));
 		}
 		catch (final InterruptedException e) {
-			throw new IllegalStateException("Interupted while trying to " + msg, e);
+			throw new IllegalStateException("Interupted while trying to " + String.format(msgFormat, msgArgs), e);
 		}
 	}
 
