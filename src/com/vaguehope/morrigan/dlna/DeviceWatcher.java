@@ -22,14 +22,19 @@ public class DeviceWatcher extends DefaultRegistryListener {
 	public void remoteDeviceAdded (final Registry registry, final RemoteDevice device) {
 		final RemoteService avTransport = findAvTransportService(device);
 		if (avTransport != null) {
-			LOG.info("found: " + device.getDetails().getFriendlyName() + " (udn=" + device.getIdentity().getUdn() + ")");
+			LOG.info("found: {} on {} (udn={})",
+					avTransport.getServiceId().getId(),
+					device.getDetails().getFriendlyName(),
+					device.getIdentity().getUdn());
 			this.playerRegisterListener.addAvTransport(device, avTransport);
 		}
 	}
 
 	@Override
 	public void remoteDeviceRemoved (final Registry registry, final RemoteDevice device) {
-		LOG.info("lost: " + device.getDisplayString() + " (udn=" + device.getIdentity().getUdn() + ")");
+		LOG.info("lost: {} (udn={})",
+				device.getDetails().getFriendlyName(),
+				device.getIdentity().getUdn());
 		this.playerRegisterListener.removeAvTransport(device);
 	}
 
