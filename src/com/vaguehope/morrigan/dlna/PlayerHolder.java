@@ -31,7 +31,8 @@ public class PlayerHolder {
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
 	private final Map<UDN, RemoteService> avTransports = new ConcurrentHashMap<UDN, RemoteService>();
-	private final ConcurrentMap<UDN, Set<Player>> players = new ConcurrentHashMap<UDN, Set<Player>>();
+	private final ConcurrentMap<UDN, Set<DlnaPlayer>> players = new ConcurrentHashMap<UDN, Set<DlnaPlayer>>();
+	private final Map<String, PlayerState> backedupPlayerState = new ConcurrentHashMap<String, PlayerState>();
 
 	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer, final ScheduledExecutorService scheduledExecutor) {
 		this.controlPoint = controlPoint;
@@ -52,9 +53,12 @@ public class PlayerHolder {
 		checkAlive();
 		final UDN udn = device.getIdentity().getUdn();
 		this.avTransports.remove(udn);
-		final Set<Player> playersFor = this.players.remove(udn);
+		final Set<DlnaPlayer> playersFor = this.players.remove(udn);
 		if (playersFor != null) {
-			for (final Player player : playersFor) {
+			for (final DlnaPlayer player : playersFor) {
+				final PlayerState backupState = player.backupState();
+				this.backedupPlayerState.put(player.getUid(), backupState);
+				LOG.info("Backed up {}: {}.", player.getUid(), backupState);
 				player.dispose();
 			}
 		}
@@ -62,7 +66,7 @@ public class PlayerHolder {
 
 	public void dispose () {
 		if (this.alive.compareAndSet(true, false)) {
-			for (final Set<Player> playersFor : this.players.values()) {
+			for (final Set<DlnaPlayer> playersFor : this.players.values()) {
 				for (final Player player : playersFor) {
 					player.dispose();
 				}
@@ -82,20 +86,23 @@ public class PlayerHolder {
 		for (final Entry<UDN, RemoteService> avT : avTs) {
 			registerAvTransport(avT.getKey(), register, avT.getValue());
 		}
-		LOG.info("Registered " + avTs.size() + " players in " + register + ".");
+		LOG.info("Registered {} players in {}.", avTs.size(), register);
 	}
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
-		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), register, this.controlPoint, avTransport, this.mediaServer, this.scheduledExecutor);
+		final PlayerState previousState = this.backedupPlayerState.get(DlnaPlayer.remoteServiceUid(avTransport));
+		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), register,
+				this.controlPoint, avTransport, this.mediaServer,
+				this.scheduledExecutor, previousState);
 		register.register(player);
 
-		Set<Player> playersFor = this.players.get(udn);
-		if (playersFor == null) this.players.putIfAbsent(udn, new HashSet<Player>());
+		Set<DlnaPlayer> playersFor = this.players.get(udn);
+		if (playersFor == null) this.players.putIfAbsent(udn, new HashSet<DlnaPlayer>());
 		playersFor = this.players.get(udn);
 		if (playersFor == null) throw new IllegalStateException();
 		playersFor.add(player);
 
-		LOG.info("Registered player " + player + " for udn=" + udn + " in " + register + ".");
+		LOG.info("Registered {}: {}.", player.getUid(), player, udn, register);
 	}
 
 }

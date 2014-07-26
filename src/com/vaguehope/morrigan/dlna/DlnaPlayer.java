@@ -33,17 +33,25 @@ public class DlnaPlayer extends AbstractPlayer {
 	private final AvTransport avTransport;
 	private final MediaServer mediaServer;
 	private final ScheduledExecutorService scheduledExecutor;
+	private final String uid;
+
 	private final PlayerEventCache playerEventCache = new PlayerEventCache();
 
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
 	private final AtomicReference<String> currentUri = new AtomicReference<String>();
 	private final AtomicReference<WatcherTask> watcher = new AtomicReference<WatcherTask>(null);
 
-	public DlnaPlayer (final int id, final PlayerRegister register, final ControlPoint controlPoint, final RemoteService avTransportSvc, final MediaServer mediaServer, final ScheduledExecutorService scheduledExecutor) {
+	public DlnaPlayer (
+			final int id, final PlayerRegister register,
+			final ControlPoint controlPoint, final RemoteService avTransportSvc,
+			final MediaServer mediaServer,
+			final ScheduledExecutorService scheduledExecutor,
+			final PlayerState previousState) {
 		super(id, avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
 		this.scheduledExecutor = scheduledExecutor;
+		this.uid = remoteServiceUid(avTransportSvc);
 		addEventListener(this.playerEventCache);
 		try {
 			setPlaybackOrder(new ServerConfig().getPlaybackOrder()); // TODO share this.
@@ -51,11 +59,16 @@ public class DlnaPlayer extends AbstractPlayer {
 		catch (final IOException e) {
 			LOG.info("Failed to read server config: " + ErrorHelper.getCauseTrace(e));
 		}
+		restoreBackedUpState(previousState);
+	}
+
+	public String getUid () {
+		return this.uid;
 	}
 
 	@Override
 	protected void onDispose () {
-		LOG.info("Disposed player: " + toString());
+		LOG.info("Disposed {}: {}.", this.uid, toString());
 	}
 
 	@Override
@@ -188,6 +201,22 @@ public class DlnaPlayer extends AbstractPlayer {
 	@Override
 	public void goFullscreen (final int monitor) {
 		// Should never be called as getMontors() always returns nothing.
+	}
+
+	private void restoreBackedUpState (final PlayerState state) {
+		if (state == null) return;
+		setPlaybackOrder(state.getPlaybackOrder());
+		this.currentItem.set(state.getCurrentItem());
+		state.addItemsToQueue(getQueue());
+		LOG.info("Restored {}: {}.", this.uid, state);
+	}
+
+	public PlayerState backupState () {
+		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getQueue());
+	}
+
+	public static String remoteServiceUid (final RemoteService rs) {
+		return String.format("%s/%s", rs.getDevice().getIdentity().getUdn(), rs.getServiceId().getId());
 	}
 
 	public static PlayState transportIntoToPlayState (final TransportInfo ti) {
