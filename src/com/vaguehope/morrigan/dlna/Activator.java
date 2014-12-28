@@ -1,5 +1,7 @@
 package com.vaguehope.morrigan.dlna;
 
+import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -9,9 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.teleal.cling.UpnpService;
 import org.teleal.cling.UpnpServiceImpl;
+import org.teleal.cling.model.ValidationException;
 
+import com.vaguehope.morrigan.dlna.content.MediaServerDeviceFactory;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.LogHelper;
+import com.vaguehope.morrigan.model.media.MediaFactoryTracker;
 
 public class Activator implements BundleActivator {
 
@@ -21,10 +26,11 @@ public class Activator implements BundleActivator {
 	private PlayerHolder playerHolder;
 	private UpnpService upnpService;
 	private PlayerRegisterListener playerRegisterListener;
+	private MediaFactoryTracker mediaFactoryTracker;
 	private ScheduledExecutorService scheduledExecutor;
 
 	@Override
-	public void start (final BundleContext context) {
+	public void start (final BundleContext context) throws ValidationException, IOException {
 		LogHelper.bridgeJul();
 
 		this.scheduledExecutor = Executors.newScheduledThreadPool(1);
@@ -35,6 +41,13 @@ public class Activator implements BundleActivator {
 		this.upnpService = new UpnpServiceImpl(new MyUpnpServiceConfiguration());
 		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, this.scheduledExecutor);
 		this.playerRegisterListener = new PlayerRegisterListener(context, this.playerHolder);
+
+		this.mediaFactoryTracker = new MediaFactoryTracker(context);
+		this.upnpService.getRegistry().addDevice(new MediaServerDeviceFactory(
+				InetAddress.getLocalHost().getHostName(),
+				this.mediaFactoryTracker,
+				this.mediaServer
+				).getDevice());
 
 		this.upnpService.getRegistry().addListener(new DeviceWatcher(this.playerRegisterListener));
 		this.upnpService.getControlPoint().search();
@@ -67,6 +80,11 @@ public class Activator implements BundleActivator {
 		if (this.mediaServer != null) {
 			this.mediaServer.dispose();
 			this.mediaServer = null;
+		}
+
+		if (this.mediaFactoryTracker != null) {
+			this.mediaFactoryTracker.dispose();
+			this.mediaFactoryTracker = null;
 		}
 
 		LOG.info("DLNA stopped.");

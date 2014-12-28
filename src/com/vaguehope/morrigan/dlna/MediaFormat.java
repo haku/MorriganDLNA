@@ -18,11 +18,18 @@ public enum MediaFormat {
 	WMV("wmv", "video/x-ms-wmv", ContentGroup.VIDEO),
 	MPG("mpg", "video/mpeg", ContentGroup.VIDEO),
 	MPEG("mpeg", "video/mpeg", ContentGroup.VIDEO),
+	OGV("ogv", "video/ogg", ContentGroup.VIDEO),
+
 	JPG("jpg", "image/jpeg", ContentGroup.IMAGE),
 	JPEG("jpeg", "image/jpeg", ContentGroup.IMAGE),
 	PNG("png", "image/png", ContentGroup.IMAGE),
+	GIF("gif", "image/gif", ContentGroup.IMAGE),
+
 	MP3("mp3", "audio/mpeg", ContentGroup.AUDIO),
 	OGG("ogg", "audio/ogg", ContentGroup.AUDIO),
+	OGA("oga", "audio/ogg", ContentGroup.AUDIO),
+	M4A("m4a", "audio/mp4", ContentGroup.AUDIO),
+	AAC("aac", "audio/aac", ContentGroup.AUDIO),
 	;
 
 	public static final FileFilter FILE_FILTER = new MediaFileFilter();
