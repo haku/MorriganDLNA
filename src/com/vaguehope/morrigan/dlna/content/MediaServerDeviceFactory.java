@@ -65,7 +65,8 @@ public class MediaServerDeviceFactory {
 		contDirSrv.setManager(new DefaultServiceManager<ContentDirectoryService>(contDirSrv, ContentDirectoryService.class) {
 			@Override
 			protected ContentDirectoryService createServiceInstance () {
-				return new ContentDirectoryService(new ContentAdaptor(mediaFactory, mediaServer), new SearchEngine());
+				final ContentAdaptor contentAdaptor = new ContentAdaptor(mediaFactory, mediaServer);
+				return new ContentDirectoryService(contentAdaptor, new SearchEngine(contentAdaptor));
 			}
 		});
 

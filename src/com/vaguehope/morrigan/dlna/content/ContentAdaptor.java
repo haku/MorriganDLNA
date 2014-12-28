@@ -24,7 +24,6 @@ import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.HashHelper;
 import com.vaguehope.morrigan.model.db.IDbColumn;
 import com.vaguehope.morrigan.model.exceptions.MorriganException;
-import com.vaguehope.morrigan.model.media.ILocalMixedMediaDb;
 import com.vaguehope.morrigan.model.media.IMediaItemStorageLayer.SortDirection;
 import com.vaguehope.morrigan.model.media.IMixedMediaDb;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem;
@@ -97,6 +96,21 @@ public class ContentAdaptor {
 		return null;
 	}
 
+	public IMixedMediaDb objectIdToDb (final String objectId) throws DbException, MorriganException {
+		final MediaListReference mlr = this.objectIdToMediaListReference.get(objectId);
+		if (mlr == null) return null;
+		return mediaListReferenceToDb(mlr);
+	}
+
+	private IMixedMediaDb mediaListReferenceToDb (final MediaListReference mlr) throws DbException, MorriganException {
+		if (mlr.getType() == MediaListReference.MediaListType.LOCALMMDB) {
+			final IMixedMediaDb db = this.mediaFactory.getLocalMixedMediaDb(mlr.getIdentifier());
+			db.read();
+			return db;
+		}
+		return null;
+	}
+
 	private ContentNode makeRootNode () {
 		final Container c = new Container();
 		c.setClazz(new DIDLObject.Class("object.container"));
@@ -145,9 +159,8 @@ public class ContentAdaptor {
 	}
 
 	private ContentNode makeDbSubNode (final String objectId, final MediaListReference mlr, final DbSubNodeType type) throws DbException, MorriganException {
-		if (mlr.getType() == MediaListReference.MediaListType.LOCALMMDB) {
-			final ILocalMixedMediaDb db = this.mediaFactory.getLocalMixedMediaDb(mlr.getIdentifier());
-			db.read();
+		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
+		if (db != null) {
 			switch (type) {
 				case TAGS:
 					return makeDbTagsNode(objectId, mlr, db);
@@ -174,15 +187,14 @@ public class ContentAdaptor {
 	}
 
 	private ContentNode makeTagNode (final String objectId, final MediaListReference mlr, final MediaTag tag) throws DbException, MorriganException {
-		if (mlr.getType() == MediaListReference.MediaListType.LOCALMMDB) {
-			final ILocalMixedMediaDb db = this.mediaFactory.getLocalMixedMediaDb(mlr.getIdentifier());
-			db.read();
+		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
+		if (db != null) {
 			return makeDbTagNode(objectId, mlr, db, tag);
 		}
 		throw new IllegalArgumentException("Unknown DB type: " + mlr);
 	}
 
-	private ContentNode makeDbTagNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db, final MediaTag tag) throws DbException {
+	private ContentNode makeDbTagNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db, final MediaTag tag) throws DbException {
 		return queryToContentNode(dbSubNodeObjectId(mlr, DbSubNodeType.TAGS), objectId, mlr, db,
 				String.format("t=\"%s\"", tag.getTag()),
 				new IDbColumn[] {
@@ -193,7 +205,7 @@ public class ContentAdaptor {
 				new SortDirection[] { SortDirection.DESC, SortDirection.ASC, SortDirection.ASC });
 	}
 
-	private ContentNode makeDbRecentlyAddedNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db) throws DbException {
+	private ContentNode makeDbRecentlyAddedNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws DbException {
 		return queryToContentNode(localMmdbObjectId(mlr), objectId, mlr, db,
 				"*",
 				new IDbColumn[] {
@@ -203,18 +215,18 @@ public class ContentAdaptor {
 				new SortDirection[] { SortDirection.DESC, SortDirection.ASC });
 	}
 
-	private ContentNode makeDbMostPlayedNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db) throws DbException {
+	private ContentNode makeDbMostPlayedNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws DbException {
 		return queryToContentNode(localMmdbObjectId(mlr), objectId, mlr, db,
 				"*",
 				new IDbColumn[] {
-			IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_ENDCNT,
-			IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_FILE
-		},
-		new SortDirection[] { SortDirection.DESC, SortDirection.ASC });
+						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_ENDCNT,
+						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_FILE
+				},
+				new SortDirection[] { SortDirection.DESC, SortDirection.ASC });
 	}
 
 	private ContentNode queryToContentNode (final String parentObjectId, final String objectId, final MediaListReference mlr,
-			final ILocalMixedMediaDb db, final String term, final IDbColumn[] sortColumns, final SortDirection[] sortDirections) throws DbException {
+			final IMixedMediaDb db, final String term, final IDbColumn[] sortColumns, final SortDirection[] sortDirections) throws DbException {
 		final Container c = makeContainer(parentObjectId, objectId, mlr.getTitle());
 
 		final List<IMixedMediaItem> results = db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections);

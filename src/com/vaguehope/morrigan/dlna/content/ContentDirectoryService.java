@@ -92,11 +92,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 			final SortCriterion[] orderBy) throws ContentDirectoryException {
 		final long startTime = System.nanoTime();
 		try {
-			final ContentNode contentNode = this.contentAdaptor.getNode(containerId);
-			if (contentNode == null) return new BrowseResult("", 0, 0);
-			if (contentNode.isItem()) throw new ContentDirectoryException(ContentDirectoryErrorCodes.UNSUPPORTED_SEARCH_CONTAINER, "Can not seach inside in an item.");
-			// TODO cache search results to make pagination faster.
-			return toRangedResult(Collections.<Container> emptyList(), this.searchEngine.search(contentNode, searchCriteria), firstResult, maxResults);
+			return toRangedResult(Collections.<Container> emptyList(), this.searchEngine.search(containerId, searchCriteria), firstResult, maxResults);
 		}
 		catch (final ContentDirectoryException e) {
 			LOG.warn(String.format("Failed to parse search request" +
