@@ -22,11 +22,14 @@ import com.vaguehope.morrigan.dlna.ContentGroup;
 import com.vaguehope.morrigan.dlna.MediaFormat;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.HashHelper;
+import com.vaguehope.morrigan.model.db.IDbColumn;
 import com.vaguehope.morrigan.model.exceptions.MorriganException;
 import com.vaguehope.morrigan.model.media.ILocalMixedMediaDb;
+import com.vaguehope.morrigan.model.media.IMediaItemStorageLayer.SortDirection;
 import com.vaguehope.morrigan.model.media.IMixedMediaDb;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem.MediaType;
+import com.vaguehope.morrigan.model.media.IMixedMediaItemStorageLayer;
 import com.vaguehope.morrigan.model.media.MediaFactory;
 import com.vaguehope.morrigan.model.media.MediaListReference;
 import com.vaguehope.morrigan.model.media.MediaTag;
@@ -142,7 +145,15 @@ public class ContentAdaptor {
 	private ContentNode makeDbTagNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db, final MediaTag tag) throws DbException {
 		final Container c = makeContainer(localMmdbObjectId(mlr), objectId, mlr.getTitle());
 
-		final List<IMixedMediaItem> results = db.simpleSearchMedia(MediaType.TRACK, String.format("t=%s", tag.getTag()), MAX_TAG_ITEMS); // FIXME cheap hack.
+		final List<IMixedMediaItem> results = db.simpleSearchMedia(
+				MediaType.TRACK, String.format("t=%s", tag.getTag()), MAX_TAG_ITEMS,
+				new IDbColumn[] {
+						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_ENDCNT,
+						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_DADDED,
+						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_FILE
+				},
+				new SortDirection[] { SortDirection.DESC, SortDirection.ASC, SortDirection.ASC });
+
 		for (final IMixedMediaItem item : results) {
 			final Item i = makeItem(c, mediaItemObjectId(mlr, item), item);
 			if (i != null) c.addItem(i);
