@@ -184,7 +184,7 @@ public class ContentAdaptor {
 
 	private ContentNode makeDbTagNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db, final MediaTag tag) throws DbException {
 		return queryToContentNode(dbSubNodeObjectId(mlr, DbSubNodeType.TAGS), objectId, mlr, db,
-				String.format("t=%s", tag.getTag()),
+				String.format("t=\"%s\"", tag.getTag()),
 				new IDbColumn[] {
 						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_ENDCNT,
 						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_DADDED,
