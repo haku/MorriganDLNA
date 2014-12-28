@@ -38,7 +38,7 @@ import com.vaguehope.sqlitewrapper.DbException;
 public class ContentAdaptor {
 
 	private static final int MAX_TAGS = 250;
-	private static final int MAX_TAG_ITEMS = 500;
+	private static final int MAX_ITEMS = 1000;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ContentAdaptor.class);
 
@@ -46,6 +46,7 @@ public class ContentAdaptor {
 	private final MediaServer mediaServer;
 
 	private final Map<String, MediaListReference> objectIdToMediaListReference = new ConcurrentHashMap<String, MediaListReference>();
+	private final Map<String, MlrAnd<DbSubNodeType>> objectIdToDbSubNodeType = new ConcurrentHashMap<String, MlrAnd<DbSubNodeType>>();
 	private final Map<String, MlrAnd<MediaTag>> objectIdToTag = new ConcurrentHashMap<String, MlrAnd<MediaTag>>();
 	private final Map<String, MlrAnd<IMixedMediaItem>> objectIdToMediaItem = new ConcurrentHashMap<String, MlrAnd<IMixedMediaItem>>();
 
@@ -69,6 +70,13 @@ public class ContentAdaptor {
 			final MediaListReference mlr = this.objectIdToMediaListReference.get(objectId);
 			if (mlr != null) {
 				return makeMediaListNode(objectId, mlr);
+			}
+		}
+
+		{
+			final MlrAnd<DbSubNodeType> mlrAndDbSubNodeType = this.objectIdToDbSubNodeType.get(objectId);
+			if (mlrAndDbSubNodeType != null) {
+				return makeDbSubNode(objectId, mlrAndDbSubNodeType.getMlr(), mlrAndDbSubNodeType.getObj());
 			}
 		}
 
@@ -110,20 +118,52 @@ public class ContentAdaptor {
 		return new ContentNode(c);
 	}
 
-	private ContentNode makeMediaListNode (final String objectId, final MediaListReference mlr) throws DbException, MorriganException {
+	private ContentNode makeMediaListNode (final String objectId, final MediaListReference mlr) {
+		final Container c = makeContainer(ContentGroup.ROOT.getId(), objectId, mlr.getTitle());
+
+		for (final DbSubNodeType t : DbSubNodeType.values()) {
+			c.addContainer(makeContainer(objectId, dbSubNodeObjectId(mlr, t), t.getTitle()));
+		}
+
+		return new ContentNode(c);
+	}
+
+	private static enum DbSubNodeType {
+		TAGS("Tags"),
+		RECENTLY_ADDED("Recently Added"),
+		MOST_PLAYED("Most Played");
+
+		private final String title;
+
+		private DbSubNodeType (final String title) {
+			this.title = title;
+		}
+
+		public String getTitle () {
+			return this.title;
+		}
+	}
+
+	private ContentNode makeDbSubNode (final String objectId, final MediaListReference mlr, final DbSubNodeType type) throws DbException, MorriganException {
 		if (mlr.getType() == MediaListReference.MediaListType.LOCALMMDB) {
 			final ILocalMixedMediaDb db = this.mediaFactory.getLocalMixedMediaDb(mlr.getIdentifier());
 			db.read();
-			return makeDbNode(objectId, mlr, db);
+			switch (type) {
+				case TAGS:
+					return makeDbTagsNode(objectId, mlr, db);
+				case RECENTLY_ADDED:
+					return makeDbRecentlyAddedNode(objectId, mlr, db);
+				case MOST_PLAYED:
+					return makeDbMostPlayedNode(objectId, mlr, db);
+				default:
+					return null;
+			}
 		}
 		throw new IllegalArgumentException("Unknown DB type: " + mlr);
 	}
 
-	private ContentNode makeDbNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws MorriganException {
-		// TODO virtual level: tags, all items, etc.
-		// For now, tags only.
-
-		final Container c = makeContainer(ContentGroup.ROOT.getId(), objectId, mlr.getTitle());
+	private ContentNode makeDbTagsNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws MorriganException {
+		final Container c = makeContainer(localMmdbObjectId(mlr), objectId, mlr.getTitle());
 
 		for (final MediaTag tag : db.getTopTags(MAX_TAGS)) {
 			c.addContainer(makeContainer(objectId, tagObjectId(mlr, tag), tag.getTag()));
@@ -143,17 +183,41 @@ public class ContentAdaptor {
 	}
 
 	private ContentNode makeDbTagNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db, final MediaTag tag) throws DbException {
-		final Container c = makeContainer(localMmdbObjectId(mlr), objectId, mlr.getTitle());
-
-		final List<IMixedMediaItem> results = db.simpleSearchMedia(
-				MediaType.TRACK, String.format("t=%s", tag.getTag()), MAX_TAG_ITEMS,
+		return queryToContentNode(dbSubNodeObjectId(mlr, DbSubNodeType.TAGS), objectId, mlr, db,
+				String.format("t=%s", tag.getTag()),
 				new IDbColumn[] {
 						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_ENDCNT,
 						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_DADDED,
 						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_FILE
 				},
 				new SortDirection[] { SortDirection.DESC, SortDirection.ASC, SortDirection.ASC });
+	}
 
+	private ContentNode makeDbRecentlyAddedNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db) throws DbException {
+		return queryToContentNode(localMmdbObjectId(mlr), objectId, mlr, db,
+				"*",
+				new IDbColumn[] {
+						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_DADDED,
+						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_FILE
+				},
+				new SortDirection[] { SortDirection.DESC, SortDirection.ASC });
+	}
+
+	private ContentNode makeDbMostPlayedNode (final String objectId, final MediaListReference mlr, final ILocalMixedMediaDb db) throws DbException {
+		return queryToContentNode(localMmdbObjectId(mlr), objectId, mlr, db,
+				"*",
+				new IDbColumn[] {
+			IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_ENDCNT,
+			IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_FILE
+		},
+		new SortDirection[] { SortDirection.DESC, SortDirection.ASC });
+	}
+
+	private ContentNode queryToContentNode (final String parentObjectId, final String objectId, final MediaListReference mlr,
+			final ILocalMixedMediaDb db, final String term, final IDbColumn[] sortColumns, final SortDirection[] sortDirections) throws DbException {
+		final Container c = makeContainer(parentObjectId, objectId, mlr.getTitle());
+
+		final List<IMixedMediaItem> results = db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections);
 		for (final IMixedMediaItem item : results) {
 			final Item i = makeItem(c, mediaItemObjectId(mlr, item), item);
 			if (i != null) c.addItem(i);
@@ -232,6 +296,12 @@ public class ContentAdaptor {
 		return id;
 	}
 
+	private String dbSubNodeObjectId (final MediaListReference mlr, final DbSubNodeType t) {
+		final String id = makeDbSubNodeObjectId(mlr, t);
+		this.objectIdToDbSubNodeType.put(id, new MlrAnd<DbSubNodeType>(mlr, t));
+		return id;
+	}
+
 	private String tagObjectId (final MediaListReference mlr, final MediaTag tag) {
 		final String id = makeTagObjectId(mlr, tag);
 		this.objectIdToTag.put(id, new MlrAnd<MediaTag>(mlr, tag));
@@ -250,6 +320,10 @@ public class ContentAdaptor {
 
 	private static String makeLocalMmdbObjectId (final MediaListReference mlr) {
 		return String.format("ldb-%s-%s", safeName(mlr.getIdentifier()), HashHelper.sha1(mlr.getIdentifier()));
+	}
+
+	private static String makeDbSubNodeObjectId (final MediaListReference mlr, final DbSubNodeType t) {
+		return String.format("dsn-%s-%s", safeName(mlr.getIdentifier()), safeName(t.name()));
 	}
 
 	private static String makeTagObjectId (final MediaListReference mlr, final MediaTag tag) {
