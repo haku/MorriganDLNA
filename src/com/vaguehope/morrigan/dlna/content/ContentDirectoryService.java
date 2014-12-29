@@ -46,7 +46,7 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 	public BrowseResult browse (final String objectId, final BrowseFlag browseFlag, final String filter, final long firstResult, final long maxResults, final SortCriterion[] orderby) throws ContentDirectoryException {
 		final long startTime = System.nanoTime();
 		try {
-			final ContentNode contentNode = this.contentAdaptor.getNode(objectId);
+			final ContentNode contentNode = this.contentAdaptor.getNode(objectId, firstResult <= 0);
 			if (contentNode == null) return new BrowseResult("", 0, 0);
 
 			if (contentNode.isItem()) {

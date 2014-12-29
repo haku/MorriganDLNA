@@ -3,8 +3,10 @@ package com.vaguehope.morrigan.dlna.content;
 import java.io.File;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +25,7 @@ import com.vaguehope.morrigan.dlna.ContentGroup;
 import com.vaguehope.morrigan.dlna.MediaFormat;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.HashHelper;
+import com.vaguehope.morrigan.dlna.util.LruMap;
 import com.vaguehope.morrigan.model.db.IDbColumn;
 import com.vaguehope.morrigan.model.exceptions.MorriganException;
 import com.vaguehope.morrigan.model.media.IMediaItemStorageLayer.SortDirection;
@@ -38,6 +41,7 @@ import com.vaguehope.sqlitewrapper.DbException;
 
 public class ContentAdaptor {
 
+	private static final int MAX_CACHE_AGE_SECONDS = 60;
 	private static final int MAX_TAGS = 250;
 	private static final int MAX_ITEMS = 1000;
 
@@ -45,6 +49,8 @@ public class ContentAdaptor {
 
 	private final MediaFactory mediaFactory;
 	private final MediaServer mediaServer;
+
+	private final Map<String, ContentNode> cache = Collections.synchronizedMap(new LruMap<String, ContentNode>(100, 100));
 
 	private final Map<String, MediaListReference> objectIdToMediaListReference = new ConcurrentHashMap<String, MediaListReference>();
 	private final Map<String, MlrAnd<DbSubNodeType>> objectIdToDbSubNodeType = new ConcurrentHashMap<String, MlrAnd<DbSubNodeType>>();
@@ -60,12 +66,20 @@ public class ContentAdaptor {
 	/**
 	 * Returns null if unknown objectId.
 	 */
-	public ContentNode getNode (final String objectId) throws DbException, MorriganException {
+	public ContentNode getNode (final String objectId, final boolean firstPage) throws DbException, MorriganException {
+		final ContentNode cached = this.cache.get(objectId);
+		if (cached != null && (!firstPage || cached.age(TimeUnit.SECONDS) < MAX_CACHE_AGE_SECONDS)) return cached;
+
+		final ContentNode made = makeNode(objectId);
+		this.cache.put(objectId, made);
+		return made;
+	}
+
+	private ContentNode makeNode (final String objectId) throws DbException, MorriganException {
 		if (ContentGroup.ROOT.getId().equals(objectId)) {
 			return makeRootNode();
 		}
 
-		// TODO cache results?
 		// TODO make more efficient by checking id prefixes?
 
 		{
