@@ -80,7 +80,7 @@ public class MediaServerDeviceFactory {
 		return this.localDevice;
 	}
 
-	private static Icon createDeviceIcon () throws IOException {
+	public static Icon createDeviceIcon () throws IOException {
 		final InputStream res = MediaServerDeviceFactory.class.getResourceAsStream("/icon.png");
 		try {
 			if (res == null) throw new IllegalStateException("Icon not found.");

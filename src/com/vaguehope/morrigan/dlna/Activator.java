@@ -2,6 +2,8 @@ package com.vaguehope.morrigan.dlna;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -12,6 +14,11 @@ import org.slf4j.LoggerFactory;
 import org.teleal.cling.UpnpService;
 import org.teleal.cling.UpnpServiceImpl;
 import org.teleal.cling.model.ValidationException;
+import org.teleal.cling.model.meta.Icon;
+import org.teleal.cling.model.resource.IconResource;
+import org.teleal.cling.model.resource.Resource;
+import org.teleal.cling.protocol.ProtocolFactory;
+import org.teleal.cling.registry.Registry;
 
 import com.vaguehope.morrigan.dlna.content.MediaServerDeviceFactory;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
@@ -38,7 +45,7 @@ public class Activator implements BundleActivator {
 		this.mediaServer = new MediaServer();
 		this.mediaServer.start();
 
-		this.upnpService = new UpnpServiceImpl(new MyUpnpServiceConfiguration());
+		this.upnpService = makeUpnpServer();
 		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, this.scheduledExecutor);
 		this.playerRegisterListener = new PlayerRegisterListener(context, this.playerHolder);
 
@@ -53,6 +60,21 @@ public class Activator implements BundleActivator {
 		this.upnpService.getControlPoint().search();
 
 		LOG.info("DLNA started.");
+	}
+
+	private static UpnpService makeUpnpServer () throws IOException {
+		final Map<String, Resource<?>> pathToRes = new HashMap<String, Resource<?>>();
+
+		final Icon icon = MediaServerDeviceFactory.createDeviceIcon();
+		final IconResource iconResource = new IconResource(icon.getUri(), icon);
+		pathToRes.put("/icon.png", iconResource);
+
+		return new UpnpServiceImpl(new MyUpnpServiceConfiguration()) {
+			@Override
+			protected Registry createRegistry (final ProtocolFactory protocolFactory) {
+				return new RegistryImplWithOverrides(this, pathToRes);
+			}
+		};
 	}
 
 	@Override
