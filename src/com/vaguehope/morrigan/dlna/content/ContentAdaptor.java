@@ -1,7 +1,7 @@
 package com.vaguehope.morrigan.dlna.content;
 
 import java.io.File;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,6 +29,7 @@ import com.vaguehope.morrigan.model.media.IMixedMediaDb;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem.MediaType;
 import com.vaguehope.morrigan.model.media.IMixedMediaItemStorageLayer;
+import com.vaguehope.morrigan.model.media.MediaAlbum;
 import com.vaguehope.morrigan.model.media.MediaFactory;
 import com.vaguehope.morrigan.model.media.MediaListReference;
 import com.vaguehope.morrigan.model.media.MediaTag;
@@ -47,6 +48,7 @@ public class ContentAdaptor {
 	private final Map<String, MediaListReference> objectIdToMediaListReference = new ConcurrentHashMap<String, MediaListReference>();
 	private final Map<String, MlrAnd<DbSubNodeType>> objectIdToDbSubNodeType = new ConcurrentHashMap<String, MlrAnd<DbSubNodeType>>();
 	private final Map<String, MlrAnd<MediaTag>> objectIdToTag = new ConcurrentHashMap<String, MlrAnd<MediaTag>>();
+	private final Map<String, MlrAnd<MediaAlbum>> objectIdToAlbum = new ConcurrentHashMap<String, MlrAnd<MediaAlbum>>();
 	private final Map<String, MlrAnd<IMixedMediaItem>> objectIdToMediaItem = new ConcurrentHashMap<String, MlrAnd<IMixedMediaItem>>();
 
 	public ContentAdaptor (final MediaFactory mediaFactory, final MediaServer mediaServer) {
@@ -83,6 +85,13 @@ public class ContentAdaptor {
 			final MlrAnd<MediaTag> mlrAndTag = this.objectIdToTag.get(objectId);
 			if (mlrAndTag != null) {
 				return makeTagNode(objectId, mlrAndTag.getMlr(), mlrAndTag.getObj());
+			}
+		}
+
+		{
+			final MlrAnd<MediaAlbum> mlrAndAlbum = this.objectIdToAlbum.get(objectId);
+			if (mlrAndAlbum != null) {
+				return makeAlbumNode(objectId, mlrAndAlbum.getMlr(), mlrAndAlbum.getObj());
 			}
 		}
 
@@ -144,6 +153,7 @@ public class ContentAdaptor {
 
 	private static enum DbSubNodeType {
 		TAGS("Tags"),
+		ALBUMS("Albums"),
 		RECENTLY_ADDED("Recently Added"),
 		MOST_PLAYED("Most Played");
 
@@ -164,6 +174,8 @@ public class ContentAdaptor {
 			switch (type) {
 				case TAGS:
 					return makeDbTagsNode(objectId, mlr, db);
+				case ALBUMS:
+					return makeDbAlbumsNode(objectId, mlr, db);
 				case RECENTLY_ADDED:
 					return makeDbRecentlyAddedNode(objectId, mlr, db);
 				case MOST_PLAYED:
@@ -188,9 +200,7 @@ public class ContentAdaptor {
 
 	private ContentNode makeTagNode (final String objectId, final MediaListReference mlr, final MediaTag tag) throws DbException, MorriganException {
 		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
-		if (db != null) {
-			return makeDbTagNode(objectId, mlr, db, tag);
-		}
+		if (db != null) return makeDbTagNode(objectId, mlr, db, tag);
 		throw new IllegalArgumentException("Unknown DB type: " + mlr);
 	}
 
@@ -203,6 +213,29 @@ public class ContentAdaptor {
 						IMixedMediaItemStorageLayer.SQL_TBL_MEDIAFILES_COL_FILE
 				},
 				new SortDirection[] { SortDirection.DESC, SortDirection.ASC, SortDirection.ASC });
+	}
+
+	private ContentNode makeDbAlbumsNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws MorriganException {
+		final Container c = makeContainer(localMmdbObjectId(mlr), objectId, mlr.getTitle());
+
+		for (final MediaAlbum album : db.getAlbums()) {
+			c.addContainer(makeContainer(objectId, albumObjectId(mlr, album), album.getName()));
+		}
+		updateContainer(c);
+
+		return new ContentNode(c);
+	}
+
+	private ContentNode makeAlbumNode (final String objectId, final MediaListReference mlr, final MediaAlbum album) throws DbException, MorriganException {
+		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
+		if (db != null) return makeDbAlbumNode(objectId, mlr, db, album);
+		throw new IllegalArgumentException("Unknown DB type: " + mlr);
+	}
+
+	private ContentNode makeDbAlbumNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db, final MediaAlbum album) throws MorriganException {
+		final Container c = makeContainer(dbSubNodeObjectId(mlr, DbSubNodeType.ALBUMS), objectId, mlr.getTitle());
+		addItemsToContainer(mlr, c, db.getAlbumItems(MediaType.TRACK, album));
+		return new ContentNode(c);
 	}
 
 	private ContentNode makeDbRecentlyAddedNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws DbException {
@@ -228,15 +261,16 @@ public class ContentAdaptor {
 	private ContentNode queryToContentNode (final String parentObjectId, final String objectId, final MediaListReference mlr,
 			final IMixedMediaDb db, final String term, final IDbColumn[] sortColumns, final SortDirection[] sortDirections) throws DbException {
 		final Container c = makeContainer(parentObjectId, objectId, mlr.getTitle());
+		addItemsToContainer(mlr, c, db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections));
+		return new ContentNode(c);
+	}
 
-		final List<IMixedMediaItem> results = db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections);
-		for (final IMixedMediaItem item : results) {
+	private void addItemsToContainer (final MediaListReference mlr, final Container c, final Collection<IMixedMediaItem> items) {
+		for (final IMixedMediaItem item : items) {
 			final Item i = makeItem(c, mediaItemObjectId(mlr, item), item);
 			if (i != null) c.addItem(i);
 		}
 		updateContainer(c);
-
-		return new ContentNode(c);
 	}
 
 	private ContentNode makeItemNode (final String objectId, final MediaListReference mlr, final IMixedMediaItem mediaItem) {
@@ -320,6 +354,12 @@ public class ContentAdaptor {
 		return id;
 	}
 
+	private String albumObjectId (final MediaListReference mlr, final MediaAlbum album) {
+		final String id = makeAlbumObjectId(mlr, album);
+		this.objectIdToAlbum.put(id, new MlrAnd<MediaAlbum>(mlr, album));
+		return id;
+	}
+
 	private String mediaItemObjectId (final MediaListReference mlr, final IMixedMediaItem item) {
 		final String id = makeMediaItemObjectId(mlr, item);
 		this.objectIdToMediaItem.put(id, new MlrAnd<IMixedMediaItem>(mlr, item));
@@ -341,6 +381,11 @@ public class ContentAdaptor {
 	private static String makeTagObjectId (final MediaListReference mlr, final MediaTag tag) {
 		return String.format("tag-%s-%s", safeName(tag.getTag()),
 				HashHelper.sha1(String.format("%s-%s-%s", mlr.getIdentifier(), tag.getClassification(), tag.getTag())));
+	}
+
+	private static String makeAlbumObjectId (final MediaListReference mlr, final MediaAlbum album) {
+		return String.format("alb-%s-%s", safeName(album.getName()),
+				HashHelper.sha1(String.format("%s-%s", mlr.getIdentifier(), album.getName())));
 	}
 
 	private static String makeMediaItemObjectId (final MediaListReference mlr, final IMixedMediaItem item) {
