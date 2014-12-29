@@ -1,6 +1,7 @@
 package com.vaguehope.morrigan.dlna.content;
 
 import java.io.File;
+import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -219,7 +220,15 @@ public class ContentAdaptor {
 		final Container c = makeContainer(localMmdbObjectId(mlr), objectId, mlr.getTitle());
 
 		for (final MediaAlbum album : db.getAlbums()) {
-			c.addContainer(makeContainer(objectId, albumObjectId(mlr, album), album.getName()));
+			final Container albumC = makeContainer(objectId, albumObjectId(mlr, album), album.getName());
+
+			final File artFile = db.findAlbumCoverArt(album);
+			if (artFile != null) {
+				final Res artRes = makeArtRes(artFile);
+				if (artRes != null) albumC.addProperty(new DIDLObject.Property.UPNP.ALBUM_ART_URI(URI.create(artRes.getValue())));
+			}
+
+			c.addContainer(albumC);
 		}
 		updateContainer(c);
 
@@ -313,16 +322,13 @@ public class ContentAdaptor {
 				throw new IllegalArgumentException();
 		}
 
-		final Res artRes = findArtRes(mediaItem);
-		if (artRes != null) {
-			item.addResource(artRes);
-		}
+		final Res artRes = makeArtRes(mediaItem.findCoverArt());
+		if (artRes != null) item.addResource(artRes);
 
 		return item;
 	}
 
-	private Res findArtRes (final IMixedMediaItem mediaItem) {
-		final File artFile = mediaItem.findCoverArt();
+	private Res makeArtRes (final File artFile) {
 		if (artFile == null) return null;
 
 		final MediaFormat artFormat = MediaFormat.identify(artFile);
