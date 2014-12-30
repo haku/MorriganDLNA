@@ -11,28 +11,36 @@ import org.teleal.common.util.MimeType;
 public enum MediaFormat {
 
 	AVI("avi", "video/avi", ContentGroup.VIDEO),
-	MP4("mp4", "video/mp4", ContentGroup.VIDEO),
+	FLV("flv", "video/x-flv", ContentGroup.VIDEO),
 	M4V("m4v", "video/mp4", ContentGroup.VIDEO),
 	MKV("mkv", "video/x-matroska", ContentGroup.VIDEO),
-	FLV("flv", "video/x-flv", ContentGroup.VIDEO),
-	WMV("wmv", "video/x-ms-wmv", ContentGroup.VIDEO),
-	MPG("mpg", "video/mpeg", ContentGroup.VIDEO),
+	MOV("mov", "video/quicktime", ContentGroup.VIDEO),
+	MP4("mp4", "video/mp4", ContentGroup.VIDEO),
 	MPEG("mpeg", "video/mpeg", ContentGroup.VIDEO),
+	MPG("mpg", "video/mpeg", ContentGroup.VIDEO),
+	OGM("ogm", "video/ogg", ContentGroup.VIDEO),
 	OGV("ogv", "video/ogg", ContentGroup.VIDEO),
+	RMVB("rmvb", "application/vnd.rn-realmedia-vbr", ContentGroup.VIDEO),
+	WMV("wmv", "video/x-ms-wmv", ContentGroup.VIDEO),
+	_3GP("3gp", "video/3gpp", ContentGroup.VIDEO),
 
-	JPG("jpg", "image/jpeg", ContentGroup.IMAGE),
-	JPEG("jpeg", "image/jpeg", ContentGroup.IMAGE),
-	PNG("png", "image/png", ContentGroup.IMAGE),
 	GIF("gif", "image/gif", ContentGroup.IMAGE),
+	JPEG("jpeg", "image/jpeg", ContentGroup.IMAGE),
+	JPG("jpg", "image/jpeg", ContentGroup.IMAGE),
+	PNG("png", "image/png", ContentGroup.IMAGE),
 
-	MP3("mp3", "audio/mpeg", ContentGroup.AUDIO),
-	OGG("ogg", "audio/ogg", ContentGroup.AUDIO),
-	OGA("oga", "audio/ogg", ContentGroup.AUDIO),
-	M4A("m4a", "audio/mp4", ContentGroup.AUDIO),
 	AAC("aac", "audio/aac", ContentGroup.AUDIO),
+	AC3("ac3", "audio/ac3", ContentGroup.AUDIO),
+	FLAC("flac", "audio/flac", ContentGroup.AUDIO),
+	M4A("m4a", "audio/mp4", ContentGroup.AUDIO),
+	MP3("mp3", "audio/mpeg", ContentGroup.AUDIO),
+	MPGA("mpga", "audio/mpeg", ContentGroup.AUDIO),
+	OGA("oga", "audio/ogg", ContentGroup.AUDIO),
+	OGG("ogg", "audio/ogg", ContentGroup.AUDIO),
+	RA("ra", "audio/vnd.rn-realaudio", ContentGroup.AUDIO),
+	WAV("wav", "audio/vnd.wave", ContentGroup.AUDIO),
+	WMA("wma", "audio/x-ms-wma", ContentGroup.AUDIO),
 	;
-
-	public static final FileFilter FILE_FILTER = new MediaFileFilter();
 
 	private static final Map<String, MediaFormat> EXT_TO_FORMAT;
 	static {
@@ -74,9 +82,8 @@ public enum MediaFormat {
 		return EXT_TO_FORMAT.get(name.substring(name.lastIndexOf(".") + 1).toLowerCase());
 	}
 
-	private static class MediaFileFilter implements FileFilter {
-
-		public MediaFileFilter () {}
+	public static enum MediaFileFilter implements FileFilter {
+		INSTANCE;
 
 		@Override
 		public boolean accept (final File file) {
