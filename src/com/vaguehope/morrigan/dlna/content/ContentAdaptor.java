@@ -4,6 +4,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.teleal.cling.model.ModelUtil;
 import org.teleal.cling.support.model.DIDLObject;
+import org.teleal.cling.support.model.DIDLObject.Property.DC;
 import org.teleal.cling.support.model.Res;
 import org.teleal.cling.support.model.WriteStatus;
 import org.teleal.cling.support.model.container.Container;
@@ -37,6 +39,7 @@ import com.vaguehope.morrigan.model.media.MediaAlbum;
 import com.vaguehope.morrigan.model.media.MediaFactory;
 import com.vaguehope.morrigan.model.media.MediaListReference;
 import com.vaguehope.morrigan.model.media.MediaTag;
+import com.vaguehope.morrigan.model.media.MediaTagType;
 import com.vaguehope.sqlitewrapper.DbException;
 
 public class ContentAdaptor {
@@ -219,7 +222,7 @@ public class ContentAdaptor {
 		throw new IllegalArgumentException("Unknown DB type: " + mlr);
 	}
 
-	private ContentNode makeDbTagNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db, final MediaTag tag) throws DbException {
+	private ContentNode makeDbTagNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db, final MediaTag tag) throws DbException, MorriganException {
 		return queryToContentNode(dbSubNodeObjectId(mlr, DbSubNodeType.TAGS), objectId, mlr, db,
 				String.format("t=\"%s\"", tag.getTag()),
 				new IDbColumn[] {
@@ -257,11 +260,11 @@ public class ContentAdaptor {
 
 	private ContentNode makeDbAlbumNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db, final MediaAlbum album) throws MorriganException {
 		final Container c = makeContainer(dbSubNodeObjectId(mlr, DbSubNodeType.ALBUMS), objectId, mlr.getTitle());
-		addItemsToContainer(mlr, c, db.getAlbumItems(MediaType.TRACK, album));
+		addItemsToContainer(mlr, c, db, db.getAlbumItems(MediaType.TRACK, album));
 		return new ContentNode(c);
 	}
 
-	private ContentNode makeDbRecentlyAddedNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws DbException {
+	private ContentNode makeDbRecentlyAddedNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws DbException, MorriganException {
 		return queryToContentNode(localMmdbObjectId(mlr), objectId, mlr, db,
 				"*",
 				new IDbColumn[] {
@@ -271,7 +274,7 @@ public class ContentAdaptor {
 				new SortDirection[] { SortDirection.DESC, SortDirection.ASC });
 	}
 
-	private ContentNode makeDbMostPlayedNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws DbException {
+	private ContentNode makeDbMostPlayedNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db) throws DbException, MorriganException {
 		return queryToContentNode(localMmdbObjectId(mlr), objectId, mlr, db,
 				"*",
 				new IDbColumn[] {
@@ -282,24 +285,32 @@ public class ContentAdaptor {
 	}
 
 	private ContentNode queryToContentNode (final String parentObjectId, final String objectId, final MediaListReference mlr,
-			final IMixedMediaDb db, final String term, final IDbColumn[] sortColumns, final SortDirection[] sortDirections) throws DbException {
+			final IMixedMediaDb db, final String term, final IDbColumn[] sortColumns, final SortDirection[] sortDirections) throws DbException, MorriganException {
 		final Container c = makeContainer(parentObjectId, objectId, mlr.getTitle());
-		addItemsToContainer(mlr, c, db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections));
+		addItemsToContainer(mlr, c, db, db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections));
 		return new ContentNode(c);
 	}
 
-	private void addItemsToContainer (final MediaListReference mlr, final Container c, final Collection<IMixedMediaItem> items) {
+	private void addItemsToContainer (final MediaListReference mlr, final Container c, final IMixedMediaDb db, final Collection<IMixedMediaItem> items) throws MorriganException {
 		for (final IMixedMediaItem item : items) {
 			final Item i = makeItem(c, mediaItemObjectId(mlr, item), item);
+			tagsToDescription(db, item, i);
 			if (i != null) c.addItem(i);
 		}
 		updateContainer(c);
 	}
 
-	private ContentNode makeItemNode (final String objectId, final MediaListReference mlr, final IMixedMediaItem mediaItem) {
+	private ContentNode makeItemNode (final String objectId, final MediaListReference mlr, final IMixedMediaItem mediaItem) throws DbException, MorriganException {
+		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
+		if (db != null) return makeDbItemNode(objectId, mlr, db, mediaItem);
+		throw new IllegalArgumentException("Unknown DB type: " + mlr);
+	}
+
+	private ContentNode makeDbItemNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db, final IMixedMediaItem mediaItem) throws MorriganException {
 		final Container parentContainer = makeContainer(localMmdbObjectId(mlr), objectId, mlr.getTitle());
 		final Item i = makeItem(parentContainer, objectId, mediaItem);
 		if (i == null) return null;
+		tagsToDescription(db, mediaItem, i);
 		return new ContentNode(i);
 	}
 
@@ -342,6 +353,24 @@ public class ContentAdaptor {
 		if (artRes != null) item.addResource(artRes);
 
 		return item;
+	}
+
+	private static void tagsToDescription (final IMixedMediaDb db, final IMixedMediaItem mediaItem, final Item item) throws MorriganException {
+		final List<MediaTag> tags = db.getTags(mediaItem);
+		if (tags != null && tags.size() > 0) {
+			StringBuilder s = null;
+			for (final MediaTag tag : tags) {
+				if (tag.getType() != MediaTagType.MANUAL) continue;
+				if (s == null) {
+					s = new StringBuilder("tags: ");
+				}
+				else {
+					s.append(", ");
+				}
+				s.append(tag.getTag());
+			}
+			if (s != null) item.replaceFirstProperty(new DC.DESCRIPTION(s.toString()));
+		}
 	}
 
 	private Res makeArtRes (final File artFile) {
