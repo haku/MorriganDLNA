@@ -318,15 +318,17 @@ public class ContentAdaptor {
 		final int durationSeconds = mediaItem.getDuration();
 		if (durationSeconds > 0) res.setDuration(ModelUtil.toTimeString(durationSeconds));
 
+		if (mediaItem.getWidth() > 0 || mediaItem.getHeight() > 0) {
+			res.setResolution(mediaItem.getWidth(), mediaItem.getHeight());
+		}
+
 		final Item item;
 		switch (format.getContentGroup()) {
 			case VIDEO:
-				//res.setResolution(resolutionXbyY);
 				item = new VideoItem(objectId, parentContainer, mediaItem.getTitle(), "", res);
 //				findSubtitles(file, format, item); // TODO
 				break;
 			case IMAGE:
-				//res.setResolution(resolutionXbyY);
 				item = new ImageItem(objectId, parentContainer, mediaItem.getTitle(), "", res);
 				break;
 			case AUDIO:
