@@ -28,6 +28,7 @@ import com.vaguehope.morrigan.dlna.ContentGroup;
 import com.vaguehope.morrigan.dlna.DbHelper;
 import com.vaguehope.morrigan.dlna.MediaFormat;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
+import com.vaguehope.morrigan.dlna.util.Cache;
 import com.vaguehope.morrigan.dlna.util.HashHelper;
 import com.vaguehope.morrigan.dlna.util.LruMap;
 import com.vaguehope.morrigan.model.db.IDbColumn;
@@ -292,9 +293,18 @@ public class ContentAdaptor {
 		updateContainer(c);
 	}
 
+	private final Cache<String, List<IMixedMediaItem>> queryCache = new Cache<String, List<IMixedMediaItem>>(50);
+
 	public List<Item> queryToItems(final MediaListReference mlr, final IMixedMediaDb db, final String term, final Container parentContainer, final int maxResults) throws DbException, MorriganException {
+		final String cacheKey = String.format("%s|%s|%s", term, maxResults, mlr.getIdentifier());
+		List<IMixedMediaItem> results = this.queryCache.getFresh(cacheKey, 1, TimeUnit.MINUTES);
+		if (results == null) {
+			results = db.simpleSearchMedia(MediaType.TRACK, term, maxResults);
+			this.queryCache.put(cacheKey, results);
+		}
+
 		final List<Item> ret = new ArrayList<Item>();
-		for (final IMixedMediaItem item : db.simpleSearchMedia(MediaType.TRACK, term, maxResults)) {
+		for (final IMixedMediaItem item : results) {
 			final Item i = makeItem(parentContainer, mlr, item);
 			if (i != null) {
 				tagsToDescription(db, item, i);
