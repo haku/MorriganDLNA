@@ -17,6 +17,7 @@ import org.teleal.cling.model.meta.RemoteDevice;
 import org.teleal.cling.model.meta.RemoteService;
 import org.teleal.cling.model.types.UDN;
 
+import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.player.Player;
 import com.vaguehope.morrigan.player.PlayerRegister;
@@ -27,6 +28,7 @@ public class PlayerHolder {
 
 	private final ControlPoint controlPoint;
 	private final MediaServer mediaServer;
+	private final MediaFileLocator mediaFileLocator;
 	private final ScheduledExecutorService scheduledExecutor;
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
@@ -34,9 +36,10 @@ public class PlayerHolder {
 	private final ConcurrentMap<UDN, Set<DlnaPlayer>> players = new ConcurrentHashMap<UDN, Set<DlnaPlayer>>();
 	private final Map<String, PlayerState> backedupPlayerState = new ConcurrentHashMap<String, PlayerState>();
 
-	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer, final ScheduledExecutorService scheduledExecutor) {
+	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer, final MediaFileLocator mediaFileLocator, final ScheduledExecutorService scheduledExecutor) {
 		this.controlPoint = controlPoint;
 		this.mediaServer = mediaServer;
+		this.mediaFileLocator = mediaFileLocator;
 		this.scheduledExecutor = scheduledExecutor;
 	}
 
@@ -92,7 +95,7 @@ public class PlayerHolder {
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
 		final PlayerState previousState = this.backedupPlayerState.get(DlnaPlayer.remoteServiceUid(avTransport));
 		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), register,
-				this.controlPoint, avTransport, this.mediaServer,
+				this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
 				this.scheduledExecutor, previousState);
 		register.register(player);
 

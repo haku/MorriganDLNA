@@ -24,6 +24,7 @@ import org.teleal.cling.support.model.item.VideoItem;
 import org.teleal.common.util.MimeType;
 
 import com.vaguehope.morrigan.dlna.ContentGroup;
+import com.vaguehope.morrigan.dlna.DbHelper;
 import com.vaguehope.morrigan.dlna.MediaFormat;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.HashHelper;
@@ -52,6 +53,8 @@ public class ContentAdaptor {
 
 	private final MediaFactory mediaFactory;
 	private final MediaServer mediaServer;
+	private final MediaFileLocator mediaFileLocator;
+	private final DbHelper dbHelper;
 
 	private final Map<String, ContentNode> cache = Collections.synchronizedMap(new LruMap<String, ContentNode>(100, 100));
 
@@ -59,11 +62,12 @@ public class ContentAdaptor {
 	private final Map<String, MlrAnd<DbSubNodeType>> objectIdToDbSubNodeType = new ConcurrentHashMap<String, MlrAnd<DbSubNodeType>>();
 	private final Map<String, MlrAnd<MediaTag>> objectIdToTag = new ConcurrentHashMap<String, MlrAnd<MediaTag>>();
 	private final Map<String, MlrAnd<MediaAlbum>> objectIdToAlbum = new ConcurrentHashMap<String, MlrAnd<MediaAlbum>>();
-	private final Map<String, MlrAnd<IMixedMediaItem>> objectIdToMediaItem = new ConcurrentHashMap<String, MlrAnd<IMixedMediaItem>>();
 
-	public ContentAdaptor (final MediaFactory mediaFactory, final MediaServer mediaServer) {
+	public ContentAdaptor (final MediaFactory mediaFactory, final MediaServer mediaServer, final MediaFileLocator mediaFileLocator) {
 		this.mediaFactory = mediaFactory;
 		this.mediaServer = mediaServer;
+		this.mediaFileLocator = mediaFileLocator;
+		this.dbHelper = new DbHelper(mediaFactory);
 	}
 
 	/**
@@ -113,29 +117,14 @@ public class ContentAdaptor {
 			}
 		}
 
-		{
-			final MlrAnd<IMixedMediaItem> mlrAndItem = this.objectIdToMediaItem.get(objectId);
-			if (mlrAndItem != null) {
-				return makeItemNode(objectId, mlrAndItem.getMlr(), mlrAndItem.getObj());
-			}
-		}
-
+		LOG.info("Not found: {}", objectId);
 		return null;
 	}
 
 	public IMixedMediaDb objectIdToDb (final String objectId) throws DbException, MorriganException {
 		final MediaListReference mlr = this.objectIdToMediaListReference.get(objectId);
 		if (mlr == null) return null;
-		return mediaListReferenceToDb(mlr);
-	}
-
-	private IMixedMediaDb mediaListReferenceToDb (final MediaListReference mlr) throws DbException, MorriganException {
-		if (mlr.getType() == MediaListReference.MediaListType.LOCALMMDB) {
-			final IMixedMediaDb db = this.mediaFactory.getLocalMixedMediaDb(mlr.getIdentifier());
-			db.read();
-			return db;
-		}
-		return null;
+		return this.dbHelper.mediaListReferenceToDb(mlr);
 	}
 
 	private ContentNode makeRootNode () {
@@ -187,7 +176,7 @@ public class ContentAdaptor {
 	}
 
 	private ContentNode makeDbSubNode (final String objectId, final MediaListReference mlr, final DbSubNodeType type) throws DbException, MorriganException {
-		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
+		final IMixedMediaDb db = this.dbHelper.mediaListReferenceToDb(mlr);
 		if (db != null) {
 			switch (type) {
 				case TAGS:
@@ -217,7 +206,7 @@ public class ContentAdaptor {
 	}
 
 	private ContentNode makeTagNode (final String objectId, final MediaListReference mlr, final MediaTag tag) throws DbException, MorriganException {
-		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
+		final IMixedMediaDb db = this.dbHelper.mediaListReferenceToDb(mlr);
 		if (db != null) return makeDbTagNode(objectId, mlr, db, tag);
 		throw new IllegalArgumentException("Unknown DB type: " + mlr);
 	}
@@ -241,7 +230,7 @@ public class ContentAdaptor {
 
 			final File artFile = db.findAlbumCoverArt(album);
 			if (artFile != null) {
-				final Res artRes = makeArtRes(artFile);
+				final Res artRes = makeArtRes(artFile, this.mediaFileLocator.albumArtId(mlr, album));
 				if (artRes != null) albumC.addProperty(new DIDLObject.Property.UPNP.ALBUM_ART_URI(URI.create(artRes.getValue())));
 			}
 
@@ -253,7 +242,7 @@ public class ContentAdaptor {
 	}
 
 	private ContentNode makeAlbumNode (final String objectId, final MediaListReference mlr, final MediaAlbum album) throws DbException, MorriganException {
-		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
+		final IMixedMediaDb db = this.dbHelper.mediaListReferenceToDb(mlr);
 		if (db != null) return makeDbAlbumNode(objectId, mlr, db, album);
 		throw new IllegalArgumentException("Unknown DB type: " + mlr);
 	}
@@ -293,28 +282,14 @@ public class ContentAdaptor {
 
 	private void addItemsToContainer (final MediaListReference mlr, final Container c, final IMixedMediaDb db, final Collection<IMixedMediaItem> items) throws MorriganException {
 		for (final IMixedMediaItem item : items) {
-			final Item i = makeItem(c, mediaItemObjectId(mlr, item), item);
+			final Item i = makeItem(c, mlr, item);
 			tagsToDescription(db, item, i);
 			if (i != null) c.addItem(i);
 		}
 		updateContainer(c);
 	}
 
-	private ContentNode makeItemNode (final String objectId, final MediaListReference mlr, final IMixedMediaItem mediaItem) throws DbException, MorriganException {
-		final IMixedMediaDb db = mediaListReferenceToDb(mlr);
-		if (db != null) return makeDbItemNode(objectId, mlr, db, mediaItem);
-		throw new IllegalArgumentException("Unknown DB type: " + mlr);
-	}
-
-	private ContentNode makeDbItemNode (final String objectId, final MediaListReference mlr, final IMixedMediaDb db, final IMixedMediaItem mediaItem) throws MorriganException {
-		final Container parentContainer = makeContainer(localMmdbObjectId(mlr), objectId, mlr.getTitle());
-		final Item i = makeItem(parentContainer, objectId, mediaItem);
-		if (i == null) return null;
-		tagsToDescription(db, mediaItem, i);
-		return new ContentNode(i);
-	}
-
-	private Item makeItem (final Container parentContainer, final String objectId, final IMixedMediaItem mediaItem) {
+	private Item makeItem (final Container parentContainer, final MediaListReference mlr, final IMixedMediaItem mediaItem) {
 		final File file = new File(mediaItem.getFilepath());
 		final MediaFormat format = MediaFormat.identify(file);
 		if (format == null) {
@@ -322,7 +297,9 @@ public class ContentAdaptor {
 			return null;
 		}
 
-		final String uri = this.mediaServer.uriForFile(objectId, file);
+
+		final String objectId = this.mediaFileLocator.mediaItemId(mlr, mediaItem);
+		final String uri = this.mediaServer.uriForId(objectId);
 		final Res res = new Res(formatToMime(format), Long.valueOf(file.length()), uri);
 		res.setSize(file.length());
 
@@ -349,7 +326,7 @@ public class ContentAdaptor {
 				throw new IllegalArgumentException();
 		}
 
-		final Res artRes = makeArtRes(mediaItem.findCoverArt());
+		final Res artRes = makeArtRes(mediaItem.findCoverArt(), this.mediaFileLocator.mediaItemArtId(mlr, mediaItem));
 		if (artRes != null) item.addResource(artRes);
 
 		return item;
@@ -373,7 +350,7 @@ public class ContentAdaptor {
 		}
 	}
 
-	private Res makeArtRes (final File artFile) {
+	private Res makeArtRes (final File artFile, final String id) {
 		if (artFile == null) return null;
 
 		final MediaFormat artFormat = MediaFormat.identify(artFile);
@@ -383,7 +360,7 @@ public class ContentAdaptor {
 		}
 		final MimeType artMimeType = formatToMime(artFormat);
 
-		final String artUri = this.mediaServer.uriForFile(artFile);
+		final String artUri = this.mediaServer.uriForId(id);
 		return new Res(artMimeType, Long.valueOf(artFile.length()), artUri);
 	}
 
@@ -411,12 +388,6 @@ public class ContentAdaptor {
 		return id;
 	}
 
-	private String mediaItemObjectId (final MediaListReference mlr, final IMixedMediaItem item) {
-		final String id = makeMediaItemObjectId(mlr, item);
-		this.objectIdToMediaItem.put(id, new MlrAnd<IMixedMediaItem>(mlr, item));
-		return id;
-	}
-
 	private static String safeName (final String s) {
 		return s.replaceAll("[^a-zA-Z0-9]", "_");
 	}
@@ -437,11 +408,6 @@ public class ContentAdaptor {
 	private static String makeAlbumObjectId (final MediaListReference mlr, final MediaAlbum album) {
 		return String.format("alb-%s-%s", safeName(album.getName()),
 				HashHelper.sha1(String.format("%s-%s", mlr.getIdentifier(), album.getName())));
-	}
-
-	private static String makeMediaItemObjectId (final MediaListReference mlr, final IMixedMediaItem item) {
-		return String.format("item-%s-%s", safeName(item.getTitle()),
-				HashHelper.sha1(String.format("%s-%s", mlr.getIdentifier(), item.getFilepath()))); // TODO could use hashcode so same when file moved?
 	}
 
 	private static MimeType formatToMime (final MediaFormat format) {

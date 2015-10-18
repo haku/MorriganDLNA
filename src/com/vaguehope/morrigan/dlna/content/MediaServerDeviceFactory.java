@@ -52,7 +52,7 @@ public class MediaServerDeviceFactory {
 
 	private final LocalDevice localDevice;
 
-	public MediaServerDeviceFactory (final String hostName, final MediaFactory mediaFactory, final MediaServer mediaServer) throws ValidationException, IOException {
+	public MediaServerDeviceFactory (final String hostName, final MediaFactory mediaFactory, final MediaServer mediaServer, final MediaFileLocator mediaFileLocator) throws ValidationException, IOException {
 		final UDN usi = UDN.uniqueSystemIdentifier(IDENTIFIER_STEM);
 		LOG.info("uniqueSystemIdentifier: {}", usi);
 		final DeviceType type = new UDADeviceType(DEVICE_TYPE, VERSION);
@@ -65,7 +65,7 @@ public class MediaServerDeviceFactory {
 		contDirSrv.setManager(new DefaultServiceManager<ContentDirectoryService>(contDirSrv, ContentDirectoryService.class) {
 			@Override
 			protected ContentDirectoryService createServiceInstance () {
-				final ContentAdaptor contentAdaptor = new ContentAdaptor(mediaFactory, mediaServer);
+				final ContentAdaptor contentAdaptor = new ContentAdaptor(mediaFactory, mediaServer, mediaFileLocator);
 				return new ContentDirectoryService(contentAdaptor, new SearchEngine(contentAdaptor));
 			}
 		});

@@ -15,6 +15,7 @@ import org.teleal.cling.model.meta.RemoteService;
 import org.teleal.cling.support.model.TransportInfo;
 import org.teleal.cling.support.model.TransportStatus;
 
+import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
@@ -32,6 +33,7 @@ public class DlnaPlayer extends AbstractPlayer {
 
 	private final AvTransport avTransport;
 	private final MediaServer mediaServer;
+	private final MediaFileLocator mediaFileLocator;
 	private final ScheduledExecutorService scheduledExecutor;
 	private final String uid;
 
@@ -45,11 +47,13 @@ public class DlnaPlayer extends AbstractPlayer {
 			final int id, final PlayerRegister register,
 			final ControlPoint controlPoint, final RemoteService avTransportSvc,
 			final MediaServer mediaServer,
+			final MediaFileLocator mediaFileLocator,
 			final ScheduledExecutorService scheduledExecutor,
 			final PlayerState previousState) {
 		super(id, avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
+		this.mediaFileLocator = mediaFileLocator;
 		this.scheduledExecutor = scheduledExecutor;
 		this.uid = remoteServiceUid(avTransportSvc);
 		addEventListener(this.playerEventCache);
@@ -78,10 +82,10 @@ public class DlnaPlayer extends AbstractPlayer {
 
 	@Override
 	protected void loadAndStartPlaying (final PlayItem item, final File file) throws Exception {
-		final String id = MediaServer.idForFile(file);
-		final String uri = this.mediaServer.uriForFile(id, file);
+		final String id = this.mediaFileLocator.fileId(file);
+		final String uri = this.mediaServer.uriForId(id);
 		final File coverArt = item.getTrack().findCoverArt();
-		final String coverArtUri = coverArt != null ? this.mediaServer.uriForFile(coverArt) : null;
+		final String coverArtUri = coverArt != null ? this.mediaServer.uriForId(this.mediaFileLocator.fileId(coverArt)) : null;
 		LOG.info("loading: " + id);
 		stopPlaying();
 		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), file, coverArtUri);

@@ -20,6 +20,7 @@ import org.teleal.cling.model.resource.Resource;
 import org.teleal.cling.protocol.ProtocolFactory;
 import org.teleal.cling.registry.Registry;
 
+import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.content.MediaServerDeviceFactory;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.LogHelper;
@@ -42,18 +43,21 @@ public class Activator implements BundleActivator {
 
 		this.scheduledExecutor = Executors.newScheduledThreadPool(1);
 
-		this.mediaServer = new MediaServer();
+		this.mediaFactoryTracker = new MediaFactoryTracker(context);
+		final MediaFileLocator mediaFileLocator = new MediaFileLocator(this.mediaFactoryTracker);
+
+		this.mediaServer = new MediaServer(mediaFileLocator);
 		this.mediaServer.start();
 
 		this.upnpService = makeUpnpServer();
-		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, this.scheduledExecutor);
+		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, mediaFileLocator, this.scheduledExecutor);
 		this.playerRegisterListener = new PlayerRegisterListener(context, this.playerHolder);
 
-		this.mediaFactoryTracker = new MediaFactoryTracker(context);
 		this.upnpService.getRegistry().addDevice(new MediaServerDeviceFactory(
 				InetAddress.getLocalHost().getHostName(),
 				this.mediaFactoryTracker,
-				this.mediaServer
+				this.mediaServer,
+				mediaFileLocator
 				).getDevice());
 
 		this.upnpService.getRegistry().addListener(new DeviceWatcher(this.playerRegisterListener));

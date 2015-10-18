@@ -3,9 +3,8 @@ package com.vaguehope.morrigan.dlna.httpserver;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URLDecoder;
 import java.util.Enumeration;
-import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -22,40 +21,58 @@ public final class ContentServlet extends DefaultServlet {
 	private static final long serialVersionUID = -4819786280597656455L;
 	private static final Logger LOG = LoggerFactory.getLogger(ContentServlet.class);
 
-	private final Map<String, File> files;
+	private final FileLocator fileLocator;
 
-	public ContentServlet (final Map<String, File> files) {
-		this.files = files;
+	/**
+	 * Fugly hack 'cos getResource()'s pathInContext has already been partly decoded.
+	 */
+	private final ThreadLocal<String> requestUri = new ThreadLocal<String>();
+
+	public ContentServlet (final FileLocator fileLocator) {
+		this.fileLocator = fileLocator;
 	}
 
 	@Override
 	protected void doGet (final HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
+		final long startTime = now();
 		try {
+			this.requestUri.set(req.getRequestURI());
 			super.doGet(req, resp);
 		}
 		finally {
+			final long durationMillis = TimeUnit.NANOSECONDS.toMillis(now() - startTime);
 			final String ranges = join(req.getHeaders(HttpHeaders.RANGE), ",");
 			if (ranges != null) {
-				LOG.info("request: " + /* resp.getStatus() + " " + */ req.getRequestURI() + " (r:" + ranges + ")");
+				LOG.info("request: {}ms {} (r: {})", durationMillis, req.getRequestURI(), ranges);
 			}
 			else {
-				LOG.info("request: " + /* resp.getStatus() + " " + */ req.getRequestURI());
+				LOG.info("request: {}ms {}", durationMillis, req.getRequestURI());
 			}
 		}
 	}
 
 	@Override
 	public Resource getResource (final String pathInContext) {
+		if (pathInContext.endsWith(".gz")) return null;
+
+		final String rUri = this.requestUri.get();
+		if (rUri == null) throw new IllegalStateException("No URI stored in thread-local.");
 		try {
-			final String id = URLDecoder.decode(pathInContext.replaceFirst("/", ""), "UTF-8");
-			final File file = this.files.get(id);
-			if (file != null) return Resource.newResource(file.toURI());
+			final String uri = rUri.startsWith("/") ? rUri.substring(1) : rUri;
+			final File file = this.fileLocator.idToFile(uri);
+			if (file != null) {
+				if (file.exists()) return Resource.newResource(file.toURI());
+				LOG.info("File not found: {}", file.getAbsolutePath());
+			}
+			else {
+				LOG.info("Resource not found: {}", rUri);
+			}
 		}
 		catch (final MalformedURLException e) {
-			LOG.info("Failed to map resource '" + pathInContext + "': " + e.getMessage());
+			LOG.info("Failed to map resource '" + rUri + "': " + e.getMessage());
 		}
 		catch (final IOException e) {
-			LOG.info("Failed to serve resource '" + pathInContext + "': " + e.getMessage());
+			LOG.info("Failed to serve resource '" + rUri + "': " + e.getMessage());
 		}
 		return null;
 	}
@@ -63,10 +80,16 @@ public final class ContentServlet extends DefaultServlet {
 	private static String join (final Enumeration<String> en, final String join) {
 		if (en == null || !en.hasMoreElements()) return null;
 		final StringBuilder s = new StringBuilder(en.nextElement());
-		while(en.hasMoreElements()) {
+		while (en.hasMoreElements()) {
 			s.append(join).append(en.nextElement());
 		}
 		return s.toString();
+	}
+
+	private static final long NANO_ORIGIN = System.nanoTime();
+
+	protected static long now () {
+		return System.nanoTime() - NANO_ORIGIN;
 	}
 
 }
