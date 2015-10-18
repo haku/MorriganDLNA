@@ -18,6 +18,7 @@
 		<teleal.version>1.0.14</teleal.version>
 		<logback.version>1.1.2</logback.version>
 		<slf4j.version>1.7.7</slf4j.version>
+		<antlr.version>4.3</antlr.version>
 	</properties>
 
 	<repositories>
@@ -155,6 +156,22 @@
 									<overWrite>false</overWrite>
 								</artifactItem>
 
+								<dependency>
+									<groupId>org.antlr</groupId>
+									<artifactId>antlr4-runtime</artifactId>
+									<version>${antlr.version}</version>
+									<type>jar</type>
+									<overWrite>false</overWrite>
+								</dependency>
+
+								<dependency>
+									<groupId>org.antlr</groupId>
+									<artifactId>antlr4-annotations</artifactId>
+									<version>${antlr.version}</version>
+									<type>jar</type>
+									<overWrite>false</overWrite>
+								</dependency>
+
 								<artifactItem>
 									<groupId>ch.qos.logback</groupId>
 									<artifactId>logback-classic</artifactId>
@@ -202,6 +219,25 @@
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<!-- http://www.antlr.org/api/maven-plugin/latest/antlr4-mojo.html -->
+			<plugin>
+				<groupId>org.antlr</groupId>
+				<artifactId>antlr4-maven-plugin</artifactId>
+				<version>${antlr.version}</version>
+				<executions>
+					<execution>
+						<id>antlr</id>
+						<goals>
+							<goal>antlr4</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<sourceDirectory>${basedir}/src/antlr4</sourceDirectory>
+					<outputDirectory>${basedir}/src</outputDirectory>
+				</configuration>
 			</plugin>
 
 		</plugins>

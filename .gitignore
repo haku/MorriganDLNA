@@ -5,4 +5,7 @@
 /build.xml
 /javaCompiler...args
 /lib
+/src/CDSC.tokens
+/src/CDSCLexer.tokens
+/src/com/vaguehope/cdsc
 /target

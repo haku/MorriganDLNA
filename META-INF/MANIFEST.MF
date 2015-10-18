@@ -8,6 +8,8 @@ Bundle-Vendor: vaguehope.com
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .,
+ lib/antlr4-annotations-4.3.jar,
+ lib/antlr4-runtime-4.3.jar,
  lib/cling-core-1.0.5.jar,
  lib/cling-support-1.0.5.jar,
  lib/teleal-common-1.0.14.jar,
