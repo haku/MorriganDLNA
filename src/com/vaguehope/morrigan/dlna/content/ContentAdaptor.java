@@ -2,6 +2,7 @@ package com.vaguehope.morrigan.dlna.content;
 
 import java.io.File;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -283,10 +284,24 @@ public class ContentAdaptor {
 	private void addItemsToContainer (final MediaListReference mlr, final Container c, final IMixedMediaDb db, final Collection<IMixedMediaItem> items) throws MorriganException {
 		for (final IMixedMediaItem item : items) {
 			final Item i = makeItem(c, mlr, item);
-			tagsToDescription(db, item, i);
-			if (i != null) c.addItem(i);
+			if (i != null) {
+				tagsToDescription(db, item, i);
+				c.addItem(i);
+			}
 		}
 		updateContainer(c);
+	}
+
+	public List<Item> queryToItems(final MediaListReference mlr, final IMixedMediaDb db, final String term, final Container parentContainer, final int maxResults) throws DbException, MorriganException {
+		final List<Item> ret = new ArrayList<Item>();
+		for (final IMixedMediaItem item : db.simpleSearchMedia(MediaType.TRACK, term, maxResults)) {
+			final Item i = makeItem(parentContainer, mlr, item);
+			if (i != null) {
+				tagsToDescription(db, item, i);
+				ret.add(i);
+			}
+		}
+		return ret;
 	}
 
 	private Item makeItem (final Container parentContainer, final MediaListReference mlr, final IMixedMediaItem mediaItem) {
@@ -296,7 +311,6 @@ public class ContentAdaptor {
 			LOG.warn("Unknown media format: {}", file.getAbsolutePath());
 			return null;
 		}
-
 
 		final String objectId = this.mediaFileLocator.mediaItemId(mlr, mediaItem);
 		final String uri = this.mediaServer.uriForId(objectId);

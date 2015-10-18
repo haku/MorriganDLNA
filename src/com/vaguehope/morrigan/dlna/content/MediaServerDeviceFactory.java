@@ -66,7 +66,7 @@ public class MediaServerDeviceFactory {
 			@Override
 			protected ContentDirectoryService createServiceInstance () {
 				final ContentAdaptor contentAdaptor = new ContentAdaptor(mediaFactory, mediaServer, mediaFileLocator);
-				return new ContentDirectoryService(contentAdaptor, new SearchEngine(contentAdaptor));
+				return new ContentDirectoryService(contentAdaptor, new SearchEngine(contentAdaptor, mediaFactory));
 			}
 		});
 
