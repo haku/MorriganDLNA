@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.teleal.common.util.MimeType;
+import org.seamless.util.MimeType;
 
 public enum MediaFormat {
 

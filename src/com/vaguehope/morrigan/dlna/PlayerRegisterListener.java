@@ -3,13 +3,13 @@ package com.vaguehope.morrigan.dlna;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.fourthline.cling.model.meta.RemoteDevice;
+import org.fourthline.cling.model.meta.RemoteService;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceEvent;
 import org.osgi.framework.ServiceListener;
 import org.osgi.framework.ServiceReference;
-import org.teleal.cling.model.meta.RemoteDevice;
-import org.teleal.cling.model.meta.RemoteService;
 
 import com.vaguehope.morrigan.player.PlayerRegister;
 

@@ -14,7 +14,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
 		<tycho-version>0.20.0</tycho-version>
-		<cling.version>1.0.5</cling.version>
+		<cling.version>2.0.1</cling.version>
 		<teleal.version>1.0.14</teleal.version>
 		<logback.version>1.1.2</logback.version>
 		<slf4j.version>1.7.7</slf4j.version>
@@ -117,7 +117,7 @@
 							<artifactItems>
 
 								<artifactItem>
-									<groupId>org.teleal.cling</groupId>
+									<groupId>org.fourthline.cling</groupId>
 									<artifactId>cling-core</artifactId>
 									<version>${cling.version}</version>
 									<type>jar</type>
@@ -125,7 +125,7 @@
 								</artifactItem>
 
 								<artifactItem>
-									<groupId>org.teleal.cling</groupId>
+									<groupId>org.fourthline.cling</groupId>
 									<artifactId>cling-support</artifactId>
 									<version>${cling.version}</version>
 									<type>jar</type>
@@ -139,6 +139,30 @@
 									<type>jar</type>
 									<overWrite>false</overWrite>
 								</artifactItem>
+
+								<dependency>
+									<groupId>org.seamless</groupId>
+									<artifactId>seamless-util</artifactId>
+									<version>1.1.0</version>
+									<type>jar</type>
+									<overWrite>false</overWrite>
+								</dependency>
+
+								<dependency>
+									<groupId>org.seamless</groupId>
+									<artifactId>seamless-http</artifactId>
+									<version>1.1.0</version>
+									<type>jar</type>
+									<overWrite>false</overWrite>
+								</dependency>
+
+								<dependency>
+									<groupId>org.seamless</groupId>
+									<artifactId>seamless-xml</artifactId>
+									<version>1.1.0</version>
+									<type>jar</type>
+									<overWrite>false</overWrite>
+								</dependency>
 
 								<artifactItem>
 									<groupId>org.apache.httpcomponents</groupId>

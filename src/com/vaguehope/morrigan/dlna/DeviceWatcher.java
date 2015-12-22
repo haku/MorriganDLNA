@@ -1,11 +1,11 @@
 package com.vaguehope.morrigan.dlna;
 
+import org.fourthline.cling.model.meta.RemoteDevice;
+import org.fourthline.cling.model.meta.RemoteService;
+import org.fourthline.cling.registry.DefaultRegistryListener;
+import org.fourthline.cling.registry.Registry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.teleal.cling.model.meta.RemoteDevice;
-import org.teleal.cling.model.meta.RemoteService;
-import org.teleal.cling.registry.DefaultRegistryListener;
-import org.teleal.cling.registry.Registry;
 
 public class DeviceWatcher extends DefaultRegistryListener {
 

@@ -2,8 +2,8 @@ package com.vaguehope.morrigan.dlna.content;
 
 import java.util.concurrent.TimeUnit;
 
-import org.teleal.cling.support.model.container.Container;
-import org.teleal.cling.support.model.item.Item;
+import org.fourthline.cling.support.model.container.Container;
+import org.fourthline.cling.support.model.item.Item;
 
 /**
  * Either a Container or an Item.

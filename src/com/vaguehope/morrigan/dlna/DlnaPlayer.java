@@ -8,12 +8,12 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.fourthline.cling.controlpoint.ControlPoint;
+import org.fourthline.cling.model.meta.RemoteService;
+import org.fourthline.cling.support.model.TransportInfo;
+import org.fourthline.cling.support.model.TransportStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.teleal.cling.controlpoint.ControlPoint;
-import org.teleal.cling.model.meta.RemoteService;
-import org.teleal.cling.support.model.TransportInfo;
-import org.teleal.cling.support.model.TransportStatus;
 
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;

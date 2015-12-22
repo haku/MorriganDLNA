@@ -7,18 +7,18 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.fourthline.cling.UpnpService;
+import org.fourthline.cling.UpnpServiceImpl;
+import org.fourthline.cling.model.ValidationException;
+import org.fourthline.cling.model.meta.Icon;
+import org.fourthline.cling.model.resource.IconResource;
+import org.fourthline.cling.model.resource.Resource;
+import org.fourthline.cling.protocol.ProtocolFactory;
+import org.fourthline.cling.registry.Registry;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.teleal.cling.UpnpService;
-import org.teleal.cling.UpnpServiceImpl;
-import org.teleal.cling.model.ValidationException;
-import org.teleal.cling.model.meta.Icon;
-import org.teleal.cling.model.resource.IconResource;
-import org.teleal.cling.model.resource.Resource;
-import org.teleal.cling.protocol.ProtocolFactory;
-import org.teleal.cling.registry.Registry;
 
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.content.MediaServerDeviceFactory;
