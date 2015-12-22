@@ -46,6 +46,8 @@ final class WatcherTask implements Runnable {
 	private final AtomicBoolean trackEnded = new AtomicBoolean(false);
 
 	private ScheduledFuture<?> scheduledFuture;
+	private volatile long lastElapsedSeconds = -1;
+	private volatile long lastDurationSeconds = -1;
 
 	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport,
 			final PlayerEventListener listener, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
@@ -67,20 +69,36 @@ final class WatcherTask implements Runnable {
 	public void run () {
 		if (this.trackEnded.get()) {
 			cancel();
+			LOG.info("Watcher cancelled; track ended.");
 			return;
 		}
 
 		final String uri = this.currentUri.get();
 		if (!this.uriToWatch.equals(uri)) { // Player is playing a different track.
 			cancel();
+			LOG.info("Watcher cancelled; player's currentUri changed to: {}.", uri);
 			return;
 		}
 
+		// Basically, does it look like its been playing OK for a bit?
+		final boolean probabblyBeenPlayingOk =
+				this.lastDurationSeconds > 0
+				? (this.lastElapsedSeconds / (double) this.lastDurationSeconds) > 0.9
+				: this.lastElapsedSeconds > 30;
+
 		final MediaInfo mi = this.avTransport.getMediaInfo();
 		final String remoteUri = mi.getCurrentURI();
+		if (remoteUri == null && probabblyBeenPlayingOk) {
+			LOG.info("Probably finished: " + uri);
+			callEndOfTrack();
+			cancel();
+			return;
+		}
+		// Cancelled /
 		if (!uri.equals(remoteUri)) { // Renderer is playing a different track.
 			this.listener.currentItemChanged(null); // TODO parse currentURIMetadata and create mock item with track title?
 			cancel();
+			LOG.info("Watcher cancelled; renderer's currentUri changed to: {}.", remoteUri);
 			return;
 		}
 
@@ -88,17 +106,21 @@ final class WatcherTask implements Runnable {
 		this.listener.playStateChanged(DlnaPlayer.transportIntoToPlayState(ti));
 		if (ti == null) {
 			cancel();
+			LOG.info("Watcher cancelled; renderer returned null transport info.");
 			return;
 		}
 
-		if (ti.getCurrentTransportStatus() != TransportStatus.OK) return;
-
-		// TODO also check track has played to the end.
+		if (ti.getCurrentTransportStatus() != TransportStatus.OK) {
+			LOG.warn("Current transport status: {}", ti.getCurrentTransportStatus());
+			return;
+		}
 
 		if (ti.getCurrentTransportState() == TransportState.STOPPED
 				|| ti.getCurrentTransportState() == TransportState.NO_MEDIA_PRESENT) {
-			LOG.info("finished: " + uri);
-			callEndOfTrack();
+			if (probabblyBeenPlayingOk) {
+				LOG.info("Finished: " + uri);
+				callEndOfTrack();
+			}
 			cancel();
 		}
 
@@ -107,8 +129,14 @@ final class WatcherTask implements Runnable {
 			this.listener.positionChanged(-1, -1);
 		}
 		else {
-			this.listener.positionChanged(pi.getTrackElapsedSeconds(), (int) pi.getTrackDurationSeconds());
-			if (!this.trackStarted.get() && pi.getTrackElapsedSeconds() > COUNTS_AS_STARTED_SECONDS) callStartOfTrack();
+			final long elapsedSeconds = pi.getTrackElapsedSeconds();
+			final long durationSeconds = pi.getTrackDurationSeconds();
+
+			if (elapsedSeconds > 0) this.lastElapsedSeconds = elapsedSeconds;
+			if (durationSeconds > 0) this.lastDurationSeconds = durationSeconds;
+
+			this.listener.positionChanged(elapsedSeconds, (int) durationSeconds);
+			if (!this.trackStarted.get() && elapsedSeconds > COUNTS_AS_STARTED_SECONDS) callStartOfTrack();
 		}
 	}
 
