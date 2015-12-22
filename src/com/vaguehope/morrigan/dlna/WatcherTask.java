@@ -93,7 +93,10 @@ final class WatcherTask implements Runnable {
 
 		if (ti.getCurrentTransportStatus() != TransportStatus.OK) return;
 
-		if (ti.getCurrentTransportState() == TransportState.STOPPED) {
+		// TODO also check track has played to the end.
+
+		if (ti.getCurrentTransportState() == TransportState.STOPPED
+				|| ti.getCurrentTransportState() == TransportState.NO_MEDIA_PRESENT) {
 			LOG.info("finished: " + uri);
 			callEndOfTrack();
 			cancel();
