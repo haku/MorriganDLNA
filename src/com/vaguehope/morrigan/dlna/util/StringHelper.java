@@ -27,4 +27,8 @@ public final class StringHelper {
 		return s.toString();
 	}
 
+	public static boolean notBlank (final String s) {
+		return s != null && s.trim().length() > 0;
+	}
+
 }

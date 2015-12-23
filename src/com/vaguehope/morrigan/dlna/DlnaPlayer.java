@@ -17,17 +17,21 @@ import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
+import com.vaguehope.morrigan.dlna.util.StringHelper;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
 import com.vaguehope.morrigan.player.AbstractPlayer;
 import com.vaguehope.morrigan.player.OrderHelper;
+import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.server.ServerConfig;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class DlnaPlayer extends AbstractPlayer {
+
+	private static final String PREF_PLAYBACK_ORDER = "playorder";
 
 	private static final Logger LOG = LoggerFactory.getLogger(DlnaPlayer.class);
 
@@ -57,12 +61,7 @@ public class DlnaPlayer extends AbstractPlayer {
 		this.scheduledExecutor = scheduledExecutor;
 		this.uid = remoteServiceUid(avTransportSvc);
 		addEventListener(this.playerEventCache);
-		try {
-			setPlaybackOrder(new ServerConfig().getPlaybackOrder()); // TODO share this.
-		}
-		catch (final IOException e) {
-			LOG.info("Failed to read server config: " + ErrorHelper.getCauseTrace(e));
-		}
+		restorePrefs();
 		restoreBackedUpState(previousState);
 	}
 
@@ -205,6 +204,28 @@ public class DlnaPlayer extends AbstractPlayer {
 	@Override
 	public void goFullscreen (final int monitor) {
 		// Should never be called as getMontors() always returns nothing.
+	}
+
+	@Override
+	public void setPlaybackOrder (final PlaybackOrder order) {
+		super.setPlaybackOrder(order);
+		try {
+			UserPrefs.INSTANCE.putValue(PREF_PLAYBACK_ORDER, getUid(), order.name());
+		}
+		catch (final IOException e) {
+			LOG.error("Failed to persist playback order.", ErrorHelper.getCauseTrace(e));
+		}
+	}
+
+	private void restorePrefs () {
+		try {
+			final String savedRaw = UserPrefs.INSTANCE.getValue(PREF_PLAYBACK_ORDER, getUid(), null);
+			final PlaybackOrder saved = StringHelper.notBlank(savedRaw) ? OrderHelper.parsePlaybackOrderByName(savedRaw) : null;
+			super.setPlaybackOrder(saved != null ? saved : new ServerConfig().getPlaybackOrder());
+		}
+		catch (final IOException e) {
+			LOG.info("Failed to read preferences: " + ErrorHelper.getCauseTrace(e));
+		}
 	}
 
 	private void restoreBackedUpState (final PlayerState state) {
