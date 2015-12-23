@@ -118,30 +118,39 @@ public class DlnaPlayer extends AbstractPlayer {
 	@Override
 	public void pausePlaying () {
 		checkAlive();
-		if (getPlayState() == PlayState.PAUSED) {
+		final PlayState playState = getPlayState();
+		if (playState == PlayState.PAUSED) {
 			this.avTransport.play();
 		}
-		else {
+		else if (playState == PlayState.PLAYING) {
 			this.avTransport.pause();
+		}
+		else if (playState == PlayState.STOPPED) {
+			final PlayItem ci = getCurrentItem();
+			if (ci != null) loadAndStartPlaying(ci);
+		}
+		else {
+			LOG.warn("Asked to pause when state is {}, do not know what to do.", playState);
 		}
 	}
 
 	@Override
 	public void stopPlaying () {
 		checkAlive();
-		try {
-			this.avTransport.stop();
-		}
-		finally {
-			this.currentItem.set(null);
-		}
+		this.avTransport.stop();
+		getListeners().playStateChanged(PlayState.STOPPED);
 	}
 
 	@Override
 	public void nextTrack () {
 		checkAlive();
 		final PlayItem nextItemToPlay = getNextItemToPlay();
-		if (nextItemToPlay != null) loadAndStartPlaying(nextItemToPlay);
+		if (nextItemToPlay != null) {
+			loadAndStartPlaying(nextItemToPlay);
+		}
+		else {
+			stopPlaying();
+		}
 	}
 
 	private PlayItem getNextItemToPlay () {
