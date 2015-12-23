@@ -137,6 +137,8 @@ final class WatcherTask implements Runnable {
 
 			this.listener.positionChanged(elapsedSeconds, (int) durationSeconds);
 			if (!this.trackStarted.get() && elapsedSeconds > COUNTS_AS_STARTED_SECONDS) callStartOfTrack();
+
+			// TODO consider writing duration back to DB.
 		}
 	}
 
