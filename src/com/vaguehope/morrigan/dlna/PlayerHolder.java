@@ -94,7 +94,7 @@ public class PlayerHolder {
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
 		final PlayerState previousState = this.backedupPlayerState.get(DlnaPlayer.remoteServiceUid(avTransport));
-		final DlnaPlayer player = new DlnaPlayer(register.nextIndex(), register,
+		final DlnaPlayer player = new DlnaPlayer(register,
 				this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
 				this.scheduledExecutor, previousState);
 		register.register(player);

@@ -48,13 +48,13 @@ public class DlnaPlayer extends AbstractPlayer {
 	private final AtomicReference<WatcherTask> watcher = new AtomicReference<WatcherTask>(null);
 
 	public DlnaPlayer (
-			final int id, final PlayerRegister register,
+			final PlayerRegister register,
 			final ControlPoint controlPoint, final RemoteService avTransportSvc,
 			final MediaServer mediaServer,
 			final MediaFileLocator mediaFileLocator,
 			final ScheduledExecutorService scheduledExecutor,
 			final PlayerState previousState) {
-		super(id, avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
+		super(idFromRemoteService(avTransportSvc), avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
 		this.mediaFileLocator = mediaFileLocator;
@@ -247,6 +247,13 @@ public class DlnaPlayer extends AbstractPlayer {
 
 	public PlayerState backupState () {
 		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getQueue());
+	}
+
+	public static String idFromRemoteService (final RemoteService rs) {
+		return String.format("%s-%s",
+				rs.getDevice().getIdentity().getUdn().getIdentifierString(),
+				rs.getServiceId().getId())
+				.replaceAll("[^a-zA-Z0-9-]", "_");
 	}
 
 	public static String remoteServiceUid (final RemoteService rs) {
