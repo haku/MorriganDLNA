@@ -21,6 +21,7 @@ import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.player.Player;
 import com.vaguehope.morrigan.player.PlayerRegister;
+import com.vaguehope.morrigan.player.PlayerStateStorage;
 
 public class PlayerHolder {
 
@@ -29,6 +30,7 @@ public class PlayerHolder {
 	private final ControlPoint controlPoint;
 	private final MediaServer mediaServer;
 	private final MediaFileLocator mediaFileLocator;
+	private final PlayerStateStorage stateStorage;
 	private final ScheduledExecutorService scheduledExecutor;
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
@@ -36,10 +38,11 @@ public class PlayerHolder {
 	private final ConcurrentMap<UDN, Set<DlnaPlayer>> players = new ConcurrentHashMap<UDN, Set<DlnaPlayer>>();
 	private final Map<String, PlayerState> backedupPlayerState = new ConcurrentHashMap<String, PlayerState>();
 
-	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer, final MediaFileLocator mediaFileLocator, final ScheduledExecutorService scheduledExecutor) {
+	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer, final MediaFileLocator mediaFileLocator, final PlayerStateStorage playerStateStorage, final ScheduledExecutorService scheduledExecutor) {
 		this.controlPoint = controlPoint;
 		this.mediaServer = mediaServer;
 		this.mediaFileLocator = mediaFileLocator;
+		this.stateStorage = playerStateStorage;
 		this.scheduledExecutor = scheduledExecutor;
 	}
 
@@ -93,10 +96,18 @@ public class PlayerHolder {
 	}
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
-		final PlayerState previousState = this.backedupPlayerState.get(DlnaPlayer.remoteServiceUid(avTransport));
 		final DlnaPlayer player = new DlnaPlayer(register,
 				this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
-				this.scheduledExecutor, previousState);
+				this.scheduledExecutor);
+
+		final PlayerState previousState = this.backedupPlayerState.get(DlnaPlayer.remoteServiceUid(avTransport));
+		if (previousState != null) {
+			player.restoreBackedUpState(previousState);
+		}
+		else {
+			this.stateStorage.readState(player);
+		}
+
 		register.register(player);
 
 		Set<DlnaPlayer> playersFor = this.players.get(udn);

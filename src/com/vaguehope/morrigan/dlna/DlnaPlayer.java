@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
-import com.vaguehope.morrigan.dlna.util.StringHelper;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
@@ -26,7 +25,6 @@ import com.vaguehope.morrigan.player.OrderHelper;
 import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
-import com.vaguehope.morrigan.server.ServerConfig;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class DlnaPlayer extends AbstractPlayer {
@@ -52,8 +50,7 @@ public class DlnaPlayer extends AbstractPlayer {
 			final ControlPoint controlPoint, final RemoteService avTransportSvc,
 			final MediaServer mediaServer,
 			final MediaFileLocator mediaFileLocator,
-			final ScheduledExecutorService scheduledExecutor,
-			final PlayerState previousState) {
+			final ScheduledExecutorService scheduledExecutor) {
 		super(idFromRemoteService(avTransportSvc), avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
@@ -61,8 +58,6 @@ public class DlnaPlayer extends AbstractPlayer {
 		this.scheduledExecutor = scheduledExecutor;
 		this.uid = remoteServiceUid(avTransportSvc);
 		addEventListener(this.playerEventCache);
-		restorePrefs();
-		restoreBackedUpState(previousState);
 	}
 
 	public String getUid () {
@@ -92,6 +87,7 @@ public class DlnaPlayer extends AbstractPlayer {
 		this.avTransport.play();
 		this.currentItem.set(item);
 		startWatcher(uri, item);
+		saveState();
 	}
 
 	private void startWatcher (final String uri, final PlayItem item) {
@@ -174,6 +170,11 @@ public class DlnaPlayer extends AbstractPlayer {
 	}
 
 	@Override
+	public void setCurrentItem (final PlayItem item) {
+		this.currentItem.set(item);
+	}
+
+	@Override
 	public PlayItem getCurrentItem () {
 		return this.currentItem.get();
 	}
@@ -226,21 +227,10 @@ public class DlnaPlayer extends AbstractPlayer {
 		}
 	}
 
-	private void restorePrefs () {
-		try {
-			final String savedRaw = UserPrefs.INSTANCE.getValue(PREF_PLAYBACK_ORDER, getUid(), null);
-			final PlaybackOrder saved = StringHelper.notBlank(savedRaw) ? OrderHelper.parsePlaybackOrderByName(savedRaw) : null;
-			super.setPlaybackOrder(saved != null ? saved : new ServerConfig().getPlaybackOrder());
-		}
-		catch (final IOException e) {
-			LOG.info("Failed to read preferences: " + ErrorHelper.getCauseTrace(e));
-		}
-	}
-
-	private void restoreBackedUpState (final PlayerState state) {
+	void restoreBackedUpState (final PlayerState state) {
 		if (state == null) return;
 		setPlaybackOrder(state.getPlaybackOrder());
-		this.currentItem.set(state.getCurrentItem());
+		setCurrentItem(state.getCurrentItem());
 		state.addItemsToQueue(getQueue());
 		LOG.info("Restored {}: {}.", this.uid, state);
 	}

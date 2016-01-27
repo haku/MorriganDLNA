@@ -25,6 +25,7 @@ import com.vaguehope.morrigan.dlna.content.MediaServerDeviceFactory;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.LogHelper;
 import com.vaguehope.morrigan.model.media.MediaFactoryTracker;
+import com.vaguehope.morrigan.player.PlayerStateStorage;
 
 public class Activator implements BundleActivator {
 
@@ -50,7 +51,7 @@ public class Activator implements BundleActivator {
 		this.mediaServer.start();
 
 		this.upnpService = makeUpnpServer();
-		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, mediaFileLocator, this.scheduledExecutor);
+		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, mediaFileLocator, new PlayerStateStorage(this.mediaFactoryTracker), this.scheduledExecutor);
 		this.playerRegisterListener = new PlayerRegisterListener(context, this.playerHolder);
 
 		this.upnpService.getRegistry().addDevice(new MediaServerDeviceFactory(
