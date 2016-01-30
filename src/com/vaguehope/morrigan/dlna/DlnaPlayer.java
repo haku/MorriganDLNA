@@ -118,7 +118,7 @@ public class DlnaPlayer extends AbstractPlayer {
 		if (playState == PlayState.PAUSED) {
 			this.avTransport.play();
 		}
-		else if (playState == PlayState.PLAYING) {
+		else if (playState == PlayState.PLAYING || playState == PlayState.LOADING) {
 			this.avTransport.pause();
 		}
 		else if (playState == PlayState.STOPPED) {
