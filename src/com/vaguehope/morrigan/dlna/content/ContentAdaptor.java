@@ -278,7 +278,7 @@ public class ContentAdaptor {
 	private ContentNode queryToContentNode (final String parentObjectId, final String objectId, final MediaListReference mlr,
 			final IMixedMediaDb db, final String term, final IDbColumn[] sortColumns, final SortDirection[] sortDirections) throws DbException, MorriganException {
 		final Container c = makeContainer(parentObjectId, objectId, mlr.getTitle());
-		addItemsToContainer(mlr, c, db, db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections));
+		addItemsToContainer(mlr, c, db, db.simpleSearchMedia(MediaType.TRACK, term, MAX_ITEMS, sortColumns, sortDirections, false));
 		return new ContentNode(c);
 	}
 
