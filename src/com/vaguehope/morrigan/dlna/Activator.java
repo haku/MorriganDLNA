@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.content.MediaServerDeviceFactory;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
+import com.vaguehope.morrigan.dlna.players.PlayerHolder;
+import com.vaguehope.morrigan.dlna.players.PlayerRegisterListener;
 import com.vaguehope.morrigan.dlna.util.LogHelper;
 import com.vaguehope.morrigan.model.media.MediaFactoryTracker;
 import com.vaguehope.morrigan.player.PlayerStateStorage;

@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.players;
 
 import java.util.ArrayList;
 import java.util.List;

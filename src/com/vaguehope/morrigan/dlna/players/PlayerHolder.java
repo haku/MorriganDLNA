@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.players;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -38,7 +38,10 @@ public class PlayerHolder {
 	private final ConcurrentMap<UDN, Set<DlnaPlayer>> players = new ConcurrentHashMap<UDN, Set<DlnaPlayer>>();
 	private final Map<String, PlayerState> backedupPlayerState = new ConcurrentHashMap<String, PlayerState>();
 
-	public PlayerHolder (final ControlPoint controlPoint, final MediaServer mediaServer, final MediaFileLocator mediaFileLocator, final PlayerStateStorage playerStateStorage, final ScheduledExecutorService scheduledExecutor) {
+
+	public PlayerHolder (final ControlPoint controlPoint,
+			final MediaServer mediaServer, final MediaFileLocator mediaFileLocator,
+			final PlayerStateStorage playerStateStorage, final ScheduledExecutorService scheduledExecutor) {
 		this.controlPoint = controlPoint;
 		this.mediaServer = mediaServer;
 		this.mediaFileLocator = mediaFileLocator;

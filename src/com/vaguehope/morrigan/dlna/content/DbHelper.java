@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.content;
 
 import java.util.concurrent.TimeUnit;
 

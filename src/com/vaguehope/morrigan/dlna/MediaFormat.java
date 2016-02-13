@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.seamless.util.MimeType;
 
+import com.vaguehope.morrigan.dlna.content.ContentGroup;
+
 public enum MediaFormat {
 
 	AVI("avi", "video/avi", ContentGroup.VIDEO),

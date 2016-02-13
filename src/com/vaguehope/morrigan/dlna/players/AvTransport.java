@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.players;
 
 import java.io.File;
 import java.net.URI;
@@ -33,6 +33,7 @@ import org.fourthline.cling.support.model.item.VideoItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaguehope.morrigan.dlna.MediaFormat;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class AvTransport {

@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.players;
 
 import com.vaguehope.morrigan.player.PlayItem;
 

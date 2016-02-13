@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.players;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,6 +15,7 @@ import org.fourthline.cling.support.model.TransportStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaguehope.morrigan.dlna.UserPrefs;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;

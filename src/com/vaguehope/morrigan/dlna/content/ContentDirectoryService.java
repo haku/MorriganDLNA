@@ -95,7 +95,6 @@ public class ContentDirectoryService extends AbstractContentDirectoryService {
 			final ContentNode contentNode = this.contentAdaptor.getNode(containerId, firstResult <= 0);
 			if (contentNode == null) return new BrowseResult("", 0, 0);
 			if (contentNode.isItem()) throw new ContentDirectoryException(ContentDirectoryErrorCodes.UNSUPPORTED_SEARCH_CONTAINER, "Can not seach inside in an item.");
-			// TODO cache search results to make pagination faster.
 			return toRangedResult(Collections.<Container> emptyList(), this.searchEngine.search(contentNode, searchCriteria), firstResult, maxResults);
 		}
 		catch (final ContentDirectoryException e) {

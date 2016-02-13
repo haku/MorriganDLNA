@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import com.vaguehope.morrigan.dlna.DbHelper;
 import com.vaguehope.morrigan.dlna.httpserver.FileLocator;
 import com.vaguehope.morrigan.dlna.util.Cache;
 import com.vaguehope.morrigan.dlna.util.HashHelper;

@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.players;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

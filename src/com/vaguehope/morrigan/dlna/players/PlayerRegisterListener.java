@@ -1,4 +1,4 @@
-package com.vaguehope.morrigan.dlna;
+package com.vaguehope.morrigan.dlna.players;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -62,6 +62,8 @@ public class PlayerRegisterListener implements ServiceListener {
 				break;
 		}
 	}
+
+	// Next 2 functions are to work around circular reference issue.
 
 	public void addAvTransport (final RemoteDevice device, final RemoteService avTransport) {
 		this.playerHolder.addAvTransport(device, avTransport, this.playerRegisters.values());
