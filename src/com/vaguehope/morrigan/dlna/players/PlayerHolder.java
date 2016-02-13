@@ -109,7 +109,7 @@ public class PlayerHolder {
 			player.restoreBackedUpState(previousState);
 		}
 		else {
-			this.stateStorage.readState(player);
+			this.stateStorage.requestReadState(player);
 		}
 
 		register.register(player);

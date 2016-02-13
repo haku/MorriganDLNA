@@ -55,7 +55,8 @@ public class Activator implements BundleActivator {
 		this.mediaServer.start();
 
 		this.upnpService = makeUpnpServer();
-		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, mediaFileLocator, new PlayerStateStorage(this.mediaFactoryTracker), this.scheduledExecutor);
+		this.playerHolder = new PlayerHolder(this.upnpService.getControlPoint(), this.mediaServer, mediaFileLocator,
+				new PlayerStateStorage(this.mediaFactoryTracker, this.scheduledExecutor), this.scheduledExecutor);
 		this.playerRegisterListener = new PlayerRegisterListener(context, this.playerHolder);
 
 		this.upnpService.getRegistry().addDevice(new MediaServerDeviceFactory(
