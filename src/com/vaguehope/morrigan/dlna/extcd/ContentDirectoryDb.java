@@ -129,7 +129,7 @@ public class ContentDirectoryDb extends EphemeralMixedMediaDb {
 		final AtomicReference<DIDLContent> ref = new AtomicReference<DIDLContent>();
 		final AtomicReference<String> err = new AtomicReference<String>();
 
-		this.controlPoint.execute(new Search(this.contentDirectory, ROOT_CONTENT_ID, searchCriteria) {
+		this.controlPoint.execute(new Search(this.contentDirectory, ROOT_CONTENT_ID, searchCriteria, Search.CAPS_WILDCARD, 0, (long) maxResults) {
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
 				final String msg = "Failed to search content directory: " + defaultMsg;
