@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.MediaFormat;
+import com.vaguehope.morrigan.dlna.UpnpHelper;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.Cache;
 import com.vaguehope.morrigan.dlna.util.HashHelper;
@@ -322,7 +323,7 @@ public class ContentAdaptor {
 
 		final String objectId = this.mediaFileLocator.mediaItemId(mlr, mediaItem);
 		final String uri = this.mediaServer.uriForId(objectId);
-		final Res res = new Res(formatToMime(format), Long.valueOf(file.length()), uri);
+		final Res res = new Res(format.toMimeType(), Long.valueOf(file.length()), uri);
 		res.setSize(file.length());
 
 		final int durationSeconds = mediaItem.getDuration();
@@ -347,6 +348,8 @@ public class ContentAdaptor {
 			default:
 				throw new IllegalArgumentException();
 		}
+
+		item.addProperty(new DIDLObject.Property.DC.DATE(UpnpHelper.DC_DATE_FORMAT.get().format(mediaItem.getDateAdded())));
 
 		final Res artRes = makeArtRes(mediaItem.findCoverArt(), this.mediaFileLocator.mediaItemArtId(mlr, mediaItem));
 		if (artRes != null) item.addResource(artRes);
@@ -380,7 +383,7 @@ public class ContentAdaptor {
 			LOG.warn("Ignoring art file of unsupported type: {}", artFile);
 			return null;
 		}
-		final MimeType artMimeType = formatToMime(artFormat);
+		final MimeType artMimeType = artFormat.toMimeType();
 
 		final String artUri = this.mediaServer.uriForId(id);
 		return new Res(artMimeType, Long.valueOf(artFile.length()), artUri);
@@ -430,11 +433,6 @@ public class ContentAdaptor {
 	private static String makeAlbumObjectId (final MediaListReference mlr, final MediaAlbum album) {
 		return String.format("alb-%s-%s", safeName(album.getName()),
 				HashHelper.sha1(String.format("%s-%s", mlr.getIdentifier(), album.getName())));
-	}
-
-	private static MimeType formatToMime (final MediaFormat format) {
-		final String mime = format.getMime();
-		return new MimeType(mime.substring(0, mime.indexOf('/')), mime.substring(mime.indexOf('/') + 1));
 	}
 
 	private static Container makeContainer (final String parentContainerId, final String id, final String title) {

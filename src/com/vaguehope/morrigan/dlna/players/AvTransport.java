@@ -1,6 +1,5 @@
 package com.vaguehope.morrigan.dlna.players;
 
-import java.io.File;
 import java.net.URI;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -30,10 +29,11 @@ import org.fourthline.cling.support.model.item.AudioItem;
 import org.fourthline.cling.support.model.item.ImageItem;
 import org.fourthline.cling.support.model.item.Item;
 import org.fourthline.cling.support.model.item.VideoItem;
+import org.seamless.util.MimeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.vaguehope.morrigan.dlna.MediaFormat;
+import com.vaguehope.morrigan.dlna.content.ContentGroup;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
 public class AvTransport {
@@ -49,8 +49,8 @@ public class AvTransport {
 		this.avTransport = avTransportSvc;
 	}
 
-	public void setUri (final String id, final String uri, final String title, final File file, final String coverArtUri) {
-		final String metadata = metadataFor(id, uri, title, file, coverArtUri);
+	public void setUri (final String id, final String uri, final String title, final MimeType mimeType, final long fileSize, final String coverArtUri) {
+		final String metadata = metadataFor(id, uri, title, mimeType, fileSize, coverArtUri);
 		final CountDownLatch cdl = new CountDownLatch(1);
 		this.controlPoint.execute(new SetAVTransportURI(this.avTransport, uri, metadata) {
 			@Override
@@ -67,12 +67,11 @@ public class AvTransport {
 		await(cdl, "set URI '%s' on transport '%s'.", uri, this.avTransport);
 	}
 
-	private static String metadataFor (final String id, final String uri, final String title, final File file, final String coverArtUri) {
-		final MediaFormat mf = MediaFormat.identify(file);
-		if (mf == null) return null;
-		final Res res = new Res(mf.getMimeType(), Long.valueOf(file.length()), uri);
+	private static String metadataFor (final String id, final String uri, final String title, final MimeType mimeType, final long fileSize, final String coverArtUri) {
+		if (mimeType == null) return null;
+		final Res res = new Res(mimeType, Long.valueOf(fileSize), uri);
 		final Item item;
-		switch (mf.getContentGroup()) {
+		switch (ContentGroup.fromMimeType(mimeType)) {
 			case VIDEO:
 				item = new VideoItem(id, "", title, "", res);
 				break;

@@ -17,6 +17,7 @@ import org.fourthline.cling.model.types.UDN;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaguehope.morrigan.dlna.UpnpHelper;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.player.Player;
@@ -103,7 +104,7 @@ public class PlayerHolder {
 				this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
 				this.scheduledExecutor);
 
-		final PlayerState previousState = this.backedupPlayerState.get(DlnaPlayer.remoteServiceUid(avTransport));
+		final PlayerState previousState = this.backedupPlayerState.get(UpnpHelper.remoteServiceUid(avTransport));
 		if (previousState != null) {
 			player.restoreBackedUpState(previousState);
 		}

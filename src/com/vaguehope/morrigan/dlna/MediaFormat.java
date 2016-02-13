@@ -67,8 +67,7 @@ public enum MediaFormat {
 		return this.mime;
 	}
 
-	public MimeType getMimeType() {
-		// TODO cache this?
+	public MimeType toMimeType() {
 		return new MimeType(this.mime.substring(0, this.mime.indexOf('/')), this.mime.substring(this.mime.indexOf('/') + 1));
 	}
 

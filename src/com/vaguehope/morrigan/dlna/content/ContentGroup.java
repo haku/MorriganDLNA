@@ -1,5 +1,6 @@
 package com.vaguehope.morrigan.dlna.content;
 
+import org.seamless.util.MimeType;
 
 public enum ContentGroup {
 
@@ -28,6 +29,19 @@ public enum ContentGroup {
 
 	public String getHumanName () {
 		return this.humanName;
+	}
+
+	public static ContentGroup fromMimeType (final MimeType mimeType) {
+		if ("video".equalsIgnoreCase(mimeType.getType())) {
+			return VIDEO;
+		}
+		else if ("audio".equalsIgnoreCase(mimeType.getType())) {
+			return AUDIO;
+		}
+		else if ("image".equalsIgnoreCase(mimeType.getType())) {
+			return IMAGE;
+		}
+		return ROOT;
 	}
 
 }

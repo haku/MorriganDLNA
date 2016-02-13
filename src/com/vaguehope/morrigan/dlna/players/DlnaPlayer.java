@@ -12,12 +12,16 @@ import org.fourthline.cling.controlpoint.ControlPoint;
 import org.fourthline.cling.model.meta.RemoteService;
 import org.fourthline.cling.support.model.TransportInfo;
 import org.fourthline.cling.support.model.TransportStatus;
+import org.seamless.util.MimeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaguehope.morrigan.dlna.MediaFormat;
+import com.vaguehope.morrigan.dlna.UpnpHelper;
 import com.vaguehope.morrigan.dlna.UserPrefs;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
+import com.vaguehope.morrigan.dlna.util.StringHelper;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
@@ -52,12 +56,12 @@ public class DlnaPlayer extends AbstractPlayer {
 			final MediaServer mediaServer,
 			final MediaFileLocator mediaFileLocator,
 			final ScheduledExecutorService scheduledExecutor) {
-		super(idFromRemoteService(avTransportSvc), avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
+		super(UpnpHelper.idFromRemoteService(avTransportSvc), avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
 		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
 		this.mediaServer = mediaServer;
 		this.mediaFileLocator = mediaFileLocator;
 		this.scheduledExecutor = scheduledExecutor;
-		this.uid = remoteServiceUid(avTransportSvc);
+		this.uid = UpnpHelper.remoteServiceUid(avTransportSvc);
 		addEventListener(this.playerEventCache);
 	}
 
@@ -76,14 +80,42 @@ public class DlnaPlayer extends AbstractPlayer {
 	}
 
 	@Override
-	protected void loadAndStartPlaying (final PlayItem item, final File file) throws Exception {
-		final String id = this.mediaFileLocator.fileId(file);
-		final String uri = this.mediaServer.uriForId(id);
-		final File coverArt = item.getTrack().findCoverArt();
-		final String coverArtUri = coverArt != null ? this.mediaServer.uriForId(this.mediaFileLocator.fileId(coverArt)) : null;
+	protected void loadAndPlay (final PlayItem item) throws Exception {
+		final String id;
+		if (StringHelper.notBlank(item.getTrack().getRemoteId())) {
+			id = item.getTrack().getRemoteId();
+		}
+		else {
+			id = this.mediaFileLocator.fileId(new File(item.getTrack().getFilepath()));
+		}
+
+		final String uri;
+		final MimeType mimeType;
+		final long fileSize;
+		if (StringHelper.notBlank(item.getTrack().getRemoteLocation())) {
+			uri = item.getTrack().getRemoteLocation();
+			mimeType = MimeType.valueOf(item.getTrack().getMimeType());
+			fileSize = item.getTrack().getFileSize();
+		}
+		else {
+			uri = this.mediaServer.uriForId(id);
+			final File file = new File(item.getTrack().getFilepath());
+			mimeType = MediaFormat.identify(file).toMimeType();
+			fileSize = file.length();
+		}
+
+		final String coverArtUri;
+		if (StringHelper.notBlank(item.getTrack().getCoverArtRemoteLocation())) {
+			coverArtUri = item.getTrack().getCoverArtRemoteLocation();
+		}
+		else {
+			final File coverArt = item.getTrack().findCoverArt();
+			coverArtUri = coverArt != null ? this.mediaServer.uriForId(this.mediaFileLocator.fileId(coverArt)) : null;
+		}
+
 		LOG.info("loading: " + id);
 		stopPlaying();
-		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), file, coverArtUri);
+		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), mimeType, fileSize, coverArtUri);
 		this.currentUri.set(uri);
 		this.avTransport.play();
 		this.currentItem.set(item);
@@ -238,17 +270,6 @@ public class DlnaPlayer extends AbstractPlayer {
 
 	public PlayerState backupState () {
 		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getQueue());
-	}
-
-	public static String idFromRemoteService (final RemoteService rs) {
-		return String.format("%s-%s",
-				rs.getDevice().getIdentity().getUdn().getIdentifierString(),
-				rs.getServiceId().getId())
-				.replaceAll("[^a-zA-Z0-9-]", "_");
-	}
-
-	public static String remoteServiceUid (final RemoteService rs) {
-		return String.format("%s/%s", rs.getDevice().getIdentity().getUdn(), rs.getServiceId().getId());
 	}
 
 	public static PlayState transportIntoToPlayState (final TransportInfo ti) {

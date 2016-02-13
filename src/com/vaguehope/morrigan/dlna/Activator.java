@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.content.MediaServerDeviceFactory;
+import com.vaguehope.morrigan.dlna.extcd.ContentDirectoryHolder;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.players.PlayerHolder;
 import com.vaguehope.morrigan.dlna.players.PlayerRegisterListener;
@@ -38,6 +39,7 @@ public class Activator implements BundleActivator {
 	private UpnpService upnpService;
 	private PlayerRegisterListener playerRegisterListener;
 	private MediaFactoryTracker mediaFactoryTracker;
+	private ContentDirectoryHolder contentDirectoryHolder;
 	private ScheduledExecutorService scheduledExecutor;
 
 	@Override
@@ -63,7 +65,9 @@ public class Activator implements BundleActivator {
 				mediaFileLocator
 				).getDevice());
 
-		this.upnpService.getRegistry().addListener(new DeviceWatcher(this.playerRegisterListener));
+		this.contentDirectoryHolder = new ContentDirectoryHolder(this.upnpService.getControlPoint(), this.mediaFactoryTracker);
+
+		this.upnpService.getRegistry().addListener(new DeviceWatcher(this.playerRegisterListener, this.contentDirectoryHolder));
 		this.upnpService.getControlPoint().search();
 
 		LOG.info("DLNA started.");
@@ -109,6 +113,11 @@ public class Activator implements BundleActivator {
 		if (this.mediaServer != null) {
 			this.mediaServer.dispose();
 			this.mediaServer = null;
+		}
+
+		if (this.contentDirectoryHolder != null) {
+			this.contentDirectoryHolder.dispose();
+			this.contentDirectoryHolder = null;
 		}
 
 		if (this.mediaFactoryTracker != null) {

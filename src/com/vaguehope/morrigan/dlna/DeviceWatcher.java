@@ -7,6 +7,7 @@ import org.fourthline.cling.registry.Registry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaguehope.morrigan.dlna.extcd.ContentDirectoryHolder;
 import com.vaguehope.morrigan.dlna.players.PlayerRegisterListener;
 
 public class DeviceWatcher extends DefaultRegistryListener {
@@ -16,14 +17,16 @@ public class DeviceWatcher extends DefaultRegistryListener {
 	private static final Logger LOG = LoggerFactory.getLogger(DeviceWatcher.class);
 
 	private final PlayerRegisterListener playerRegisterListener;
+	private final ContentDirectoryHolder contentDirectoryHolder;
 
-	public DeviceWatcher (final PlayerRegisterListener playerRegisterListener) {
+	public DeviceWatcher (final PlayerRegisterListener playerRegisterListener, final ContentDirectoryHolder contentDirectoryHolder) {
 		this.playerRegisterListener = playerRegisterListener;
+		this.contentDirectoryHolder = contentDirectoryHolder;
 	}
 
 	@Override
 	public void remoteDeviceAdded (final Registry registry, final RemoteDevice device) {
-		final RemoteService avTransport = findService(device, SERVICE_AVTRANSPORT);
+		final RemoteService avTransport = findFirstServiceOfType(device, SERVICE_AVTRANSPORT);
 		if (avTransport != null) {
 			LOG.info("found: {} on {} (udn={})",
 					avTransport.getServiceId().getId(),
@@ -32,13 +35,13 @@ public class DeviceWatcher extends DefaultRegistryListener {
 			this.playerRegisterListener.addAvTransport(device, avTransport);
 		}
 
-		final RemoteService contentDirectory = findService(device, SERVICE_CONTENTDIRECTORY);
+		final RemoteService contentDirectory = findFirstServiceOfType(device, SERVICE_CONTENTDIRECTORY);
 		if (contentDirectory != null) {
 			LOG.info("found: {} on {} (udn={})",
 					contentDirectory.getServiceId().getId(),
 					device.getDetails().getFriendlyName(),
 					device.getIdentity().getUdn());
-			// TODO
+			this.contentDirectoryHolder.addContentDirectory(device, contentDirectory);
 		}
 	}
 
@@ -48,9 +51,10 @@ public class DeviceWatcher extends DefaultRegistryListener {
 				device.getDetails().getFriendlyName(),
 				device.getIdentity().getUdn());
 		this.playerRegisterListener.removeAvTransport(device);
+		this.contentDirectoryHolder.removeContentDirectory(device);
 	}
 
-	private static RemoteService findService (final RemoteDevice rd, final String service) {
+	private static RemoteService findFirstServiceOfType (final RemoteDevice rd, final String service) {
 		for (final RemoteService rs : rd.getServices()) {
 			if (service.equals(rs.getServiceType().getType())) return rs;
 		}
