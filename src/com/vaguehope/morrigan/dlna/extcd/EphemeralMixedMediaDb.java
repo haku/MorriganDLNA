@@ -192,8 +192,8 @@ public abstract class EphemeralMixedMediaDb implements IMixedMediaDb {
 	}
 
 	@Override
-	public List<MediaTag> tagSearch (final String prefix, final int resLimit) throws MorriganException {
-		return Collections.emptyList();
+	public Map<String, MediaTag> tagSearch (final String prefix, final int resLimit) throws MorriganException {
+		return Collections.emptyMap();
 	}
 
 	@Override
