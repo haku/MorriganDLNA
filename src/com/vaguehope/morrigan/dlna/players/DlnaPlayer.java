@@ -16,6 +16,7 @@ import org.seamless.util.MimeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaguehope.morrigan.dlna.DlnaException;
 import com.vaguehope.morrigan.dlna.MediaFormat;
 import com.vaguehope.morrigan.dlna.UpnpHelper;
 import com.vaguehope.morrigan.dlna.UserPrefs;
@@ -31,6 +32,7 @@ import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.util.ErrorHelper;
+import com.vaguehope.morrigan.util.Objs;
 
 public class DlnaPlayer extends AbstractPlayer {
 
@@ -49,6 +51,8 @@ public class DlnaPlayer extends AbstractPlayer {
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
 	private final AtomicReference<String> currentUri = new AtomicReference<String>();
 	private final AtomicReference<WatcherTask> watcher = new AtomicReference<WatcherTask>(null);
+
+	private volatile PlayerState restorePositionState;
 
 	public DlnaPlayer (
 			final PlayerRegister register,
@@ -71,6 +75,9 @@ public class DlnaPlayer extends AbstractPlayer {
 
 	@Override
 	protected void onDispose () {
+		final WatcherTask watcher = this.watcher.getAndSet(null);
+		if (watcher != null) watcher.cancel();
+
 		LOG.info("Disposed {}: {}.", this.uid, toString());
 	}
 
@@ -113,7 +120,7 @@ public class DlnaPlayer extends AbstractPlayer {
 			coverArtUri = coverArt != null ? this.mediaServer.uriForId(this.mediaFileLocator.fileId(coverArt)) : null;
 		}
 
-		LOG.info("loading: " + id);
+		LOG.info("loading: {}", id);
 		stopPlaying();
 		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), mimeType, fileSize, coverArtUri);
 		this.currentUri.set(uri);
@@ -121,6 +128,23 @@ public class DlnaPlayer extends AbstractPlayer {
 		this.currentItem.set(item);
 		startWatcher(uri, item);
 		saveState();
+
+		// Only restore position if for same item.
+		final PlayerState rps = this.restorePositionState;
+		if (rps != null && rps.getCurrentItem() != null && rps.getCurrentItem().hasTrack()) {
+			if (Objs.equals(item.getTrack(), rps.getCurrentItem().getTrack())) {
+				final WatcherTask w = this.watcher.get();
+				if (w != null) {
+					w.requestSeekAfterPlaybackStarts(rps.getPosition());
+					LOG.info("Scheduled restore of position: {}s", rps.getPosition());
+				}
+			}
+			else {
+				LOG.info("Not restoreing position for {} as track is {}.",
+						rps.getCurrentItem().getTrack(), item.getTrack());
+			}
+		}
+		this.restorePositionState = null;
 	}
 
 	private void startWatcher (final String uri, final PlayItem item) {
@@ -147,27 +171,37 @@ public class DlnaPlayer extends AbstractPlayer {
 	@Override
 	public void pausePlaying () {
 		checkAlive();
-		final PlayState playState = getPlayState();
-		if (playState == PlayState.PAUSED) {
-			this.avTransport.play();
+		try {
+			final PlayState playState = getPlayState();
+			if (playState == PlayState.PAUSED) {
+				this.avTransport.play();
+			}
+			else if (playState == PlayState.PLAYING || playState == PlayState.LOADING) {
+				this.avTransport.pause();
+			}
+			else if (playState == PlayState.STOPPED) {
+				final PlayItem ci = getCurrentItem();
+				if (ci != null) loadAndStartPlaying(ci);
+			}
+			else {
+				LOG.warn("Asked to pause when state is {}, do not know what to do.", playState);
+			}
 		}
-		else if (playState == PlayState.PLAYING || playState == PlayState.LOADING) {
-			this.avTransport.pause();
-		}
-		else if (playState == PlayState.STOPPED) {
-			final PlayItem ci = getCurrentItem();
-			if (ci != null) loadAndStartPlaying(ci);
-		}
-		else {
-			LOG.warn("Asked to pause when state is {}, do not know what to do.", playState);
+		catch (final DlnaException e) {
+			getListeners().onException(e);
 		}
 	}
 
 	@Override
 	public void stopPlaying () {
 		checkAlive();
-		this.avTransport.stop();
-		getListeners().playStateChanged(PlayState.STOPPED);
+		try {
+			this.avTransport.stop();
+			getListeners().playStateChanged(PlayState.STOPPED);
+		}
+		catch (final DlnaException e) {
+			getListeners().onException(e);
+		}
 	}
 
 	@Override
@@ -231,7 +265,12 @@ public class DlnaPlayer extends AbstractPlayer {
 	@Override
 	public void seekTo (final double d) {
 		checkAlive();
-		this.avTransport.seek((long) (getCurrentTrackDuration() * d));
+		try {
+			this.avTransport.seek((long) (getCurrentTrackDuration() * d));
+		}
+		catch (final DlnaException e) {
+			getListeners().onException(e);
+		}
 	}
 
 	@Override
@@ -264,12 +303,13 @@ public class DlnaPlayer extends AbstractPlayer {
 		if (state == null) return;
 		setPlaybackOrder(state.getPlaybackOrder());
 		setCurrentItem(state.getCurrentItem());
+		this.restorePositionState = state;
 		state.addItemsToQueue(getQueue());
 		LOG.info("Restored {}: {}.", this.uid, state);
 	}
 
 	public PlayerState backupState () {
-		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getQueue());
+		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getCurrentPosition(), getQueue());
 	}
 
 	public static PlayState transportIntoToPlayState (final TransportInfo ti) {

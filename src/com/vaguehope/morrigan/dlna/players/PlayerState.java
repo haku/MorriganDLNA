@@ -11,11 +11,13 @@ public class PlayerState {
 
 	private final PlaybackOrder playbackOrder;
 	private final PlayItem currentItem;
+	private final long position;
 	private final List<PlayItem> queueItems;
 
-	public PlayerState (final PlaybackOrder playbackOrder, final PlayItem currentItem, final PlayerQueue queue) {
+	public PlayerState (final PlaybackOrder playbackOrder, final PlayItem currentItem, final long position, final PlayerQueue queue) {
 		this.playbackOrder = playbackOrder;
 		this.currentItem = currentItem;
+		this.position = position;
 		this.queueItems = new ArrayList<PlayItem>(queue.getQueueList());
 	}
 
@@ -27,6 +29,10 @@ public class PlayerState {
 		return this.currentItem;
 	}
 
+	public long getPosition () {
+		return this.position;
+	}
+
 	public void addItemsToQueue (final PlayerQueue queue) {
 		for (final PlayItem item : this.queueItems) {
 			queue.addToQueue(new PlayItem(item.getList(), item.getTrack())); // Clone to have not set ID.
@@ -35,7 +41,7 @@ public class PlayerState {
 
 	@Override
 	public String toString () {
-		return String.format("PlayerState{po=%s ci=%s q=%s}", this.playbackOrder, this.currentItem, this.queueItems.size());
+		return String.format("PlayerState{po=%s ci=%s p=%ss q=%s}", this.playbackOrder, this.currentItem, this.position, this.queueItems.size());
 	}
 
 }

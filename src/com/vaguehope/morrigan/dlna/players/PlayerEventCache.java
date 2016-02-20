@@ -1,11 +1,16 @@
 package com.vaguehope.morrigan.dlna.players;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.Player.PlayerEventListener;
 
 public class PlayerEventCache implements PlayerEventListener {
+
+	private static final Logger LOG = LoggerFactory.getLogger(PlayerEventCache.class);
 
 	private volatile PlaybackOrder playbackOrder;
 	private volatile PlayItem currentItem;
@@ -35,7 +40,9 @@ public class PlayerEventCache implements PlayerEventListener {
 	}
 
 	@Override
-	public void onException (final Exception e) {/* Unused. */}
+	public void onException (final Exception e) {
+		LOG.warn("Unhandled excpetion.", e);
+	}
 
 	public PlaybackOrder getPlaybackOrder () {
 		return this.playbackOrder;

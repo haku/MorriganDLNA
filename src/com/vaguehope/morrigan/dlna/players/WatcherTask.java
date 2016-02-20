@@ -14,7 +14,9 @@ import org.fourthline.cling.support.model.TransportStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.vaguehope.morrigan.dlna.DlnaException;
 import com.vaguehope.morrigan.player.Player.PlayerEventListener;
+import com.vaguehope.morrigan.util.ErrorHelper;
 
 final class WatcherTask implements Runnable {
 
@@ -42,10 +44,12 @@ final class WatcherTask implements Runnable {
 	private final Runnable onStartOfTrack;
 	private final Runnable onEndOfTrack;
 
+	private final AtomicReference<ScheduledFuture<?>> scheduledFuture = new AtomicReference<ScheduledFuture<?>>();
+	private volatile long restorePositionAfterPlaybackStarts;
+
 	private final AtomicBoolean trackStarted = new AtomicBoolean(false);
 	private final AtomicBoolean trackEnded = new AtomicBoolean(false);
 
-	private ScheduledFuture<?> scheduledFuture;
 	private volatile long lastElapsedSeconds = -1;
 	private volatile long lastDurationSeconds = -1;
 
@@ -59,14 +63,29 @@ final class WatcherTask implements Runnable {
 		this.onEndOfTrack = onEndOfTrack;
 	}
 
+	public void requestSeekAfterPlaybackStarts (final long position) {
+		this.restorePositionAfterPlaybackStarts = position;
+	}
+
 	public void cancel () {
-		if (this.scheduledFuture == null) return;
-		this.scheduledFuture.cancel(false);
-		this.scheduledFuture = null;
+		final ScheduledFuture<?> sf = this.scheduledFuture.getAndSet(null);
+		if (sf != null) sf.cancel(false);
 	}
 
 	@Override
 	public void run () {
+		try {
+			runOrThrow();
+		}
+		catch (final DlnaException e) {
+			LOG.warn("DLNA error: {}", ErrorHelper.oneLineCauseTrace(e));
+		}
+		catch (final Exception e) {
+			LOG.warn("Unhandled exception in watcher.", e);
+		}
+	}
+
+	public void runOrThrow () throws DlnaException {
 		if (this.trackEnded.get()) {
 			cancel();
 			LOG.info("Watcher cancelled; track ended.");
@@ -87,7 +106,7 @@ final class WatcherTask implements Runnable {
 				: this.lastElapsedSeconds > 30;
 
 		final MediaInfo mi = this.avTransport.getMediaInfo();
-		final String remoteUri = mi.getCurrentURI();
+		final String remoteUri = mi != null ? mi.getCurrentURI() : null;
 		if (remoteUri == null && probabblyBeenPlayingOk) {
 			LOG.info("Probably finished: " + uri);
 			callEndOfTrack();
@@ -138,6 +157,15 @@ final class WatcherTask implements Runnable {
 			this.listener.positionChanged(elapsedSeconds, (int) durationSeconds);
 			if (!this.trackStarted.get() && elapsedSeconds > COUNTS_AS_STARTED_SECONDS) callStartOfTrack();
 
+			if (elapsedSeconds > 0) {
+				final long posToRestore = this.restorePositionAfterPlaybackStarts;
+				if (posToRestore > 0) {
+					this.avTransport.seek(posToRestore);
+					LOG.info("Restored position: {}s", posToRestore);
+					this.restorePositionAfterPlaybackStarts = 0;
+				}
+			}
+
 			// TODO consider writing duration back to DB.
 		}
 	}
@@ -152,7 +180,9 @@ final class WatcherTask implements Runnable {
 	}
 
 	private void setFuture (final ScheduledFuture<?> scheduledFuture) {
-		this.scheduledFuture = scheduledFuture;
+		if (!this.scheduledFuture.compareAndSet(null, scheduledFuture)) {
+			throw new IllegalStateException("ScheduledFuture already set.");
+		}
 	}
 
 }
