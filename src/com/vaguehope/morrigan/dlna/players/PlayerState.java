@@ -35,7 +35,7 @@ public class PlayerState {
 
 	public void addItemsToQueue (final PlayerQueue queue) {
 		for (final PlayItem item : this.queueItems) {
-			queue.addToQueue(new PlayItem(item.getList(), item.getTrack())); // Clone to have not set ID.
+			queue.addToQueue(item.withoutId());
 		}
 	}
 
