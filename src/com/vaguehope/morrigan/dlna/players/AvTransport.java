@@ -50,8 +50,8 @@ public class AvTransport {
 		this.avTransport = avTransportSvc;
 	}
 
-	public void setUri (final String id, final String uri, final String title, final MimeType mimeType, final long fileSize, final String coverArtUri) throws DlnaException {
-		final String metadata = metadataFor(id, uri, title, mimeType, fileSize, coverArtUri);
+	public void setUri (final String id, final String uri, final String title, final MimeType mimeType, final long fileSize, final String coverArtUri, final int durationSeconds) throws DlnaException {
+		final String metadata = metadataFor(id, uri, title, mimeType, fileSize, coverArtUri, durationSeconds);
 		final CountDownLatch cdl = new CountDownLatch(1);
 		final AtomicReference<String> err = new AtomicReference<String>();
 		this.controlPoint.execute(new SetAVTransportURI(this.avTransport, uri, metadata) {
@@ -70,9 +70,10 @@ public class AvTransport {
 		if (err.get() != null) throw new DlnaException(err.get());
 	}
 
-	private static String metadataFor (final String id, final String uri, final String title, final MimeType mimeType, final long fileSize, final String coverArtUri) {
+	private static String metadataFor (final String id, final String uri, final String title, final MimeType mimeType, final long fileSize, final String coverArtUri, final int durationSeconds) {
 		if (mimeType == null) return null;
 		final Res res = new Res(mimeType, Long.valueOf(fileSize), uri);
+		if (durationSeconds > 0) res.setDuration(ModelUtil.toTimeString(durationSeconds));
 		final Item item;
 		switch (ContentGroup.fromMimeType(mimeType)) {
 			case VIDEO:

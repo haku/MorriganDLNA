@@ -122,7 +122,7 @@ public class DlnaPlayer extends AbstractPlayer {
 
 		LOG.info("loading: {}", id);
 		stopPlaying();
-		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), mimeType, fileSize, coverArtUri);
+		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), mimeType, fileSize, coverArtUri, item.getTrack().getDuration());
 		this.currentUri.set(uri);
 		this.avTransport.play();
 		this.currentItem.set(item);
