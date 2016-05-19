@@ -1,7 +1,6 @@
 package com.vaguehope.morrigan.dlna.players;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,6 @@ import org.slf4j.LoggerFactory;
 import com.vaguehope.morrigan.dlna.DlnaException;
 import com.vaguehope.morrigan.dlna.MediaFormat;
 import com.vaguehope.morrigan.dlna.UpnpHelper;
-import com.vaguehope.morrigan.dlna.UserPrefs;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.StringHelper;
@@ -31,12 +29,9 @@ import com.vaguehope.morrigan.player.OrderHelper;
 import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
-import com.vaguehope.morrigan.util.ErrorHelper;
 import com.vaguehope.morrigan.util.Objs;
 
 public class DlnaPlayer extends AbstractPlayer {
-
-	private static final String PREF_PLAYBACK_ORDER = "playorder";
 
 	private static final Logger LOG = LoggerFactory.getLogger(DlnaPlayer.class);
 
@@ -291,12 +286,7 @@ public class DlnaPlayer extends AbstractPlayer {
 	@Override
 	public void setPlaybackOrder (final PlaybackOrder order) {
 		super.setPlaybackOrder(order);
-		try {
-			UserPrefs.INSTANCE.putValue(PREF_PLAYBACK_ORDER, getUid(), order.name());
-		}
-		catch (final IOException e) {
-			LOG.error("Failed to persist playback order.", ErrorHelper.getCauseTrace(e));
-		}
+		saveState();
 	}
 
 	void restoreBackedUpState (final PlayerState state) {
