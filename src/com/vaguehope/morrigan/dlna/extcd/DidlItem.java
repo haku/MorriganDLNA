@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.UpnpHelper;
 import com.vaguehope.morrigan.dlna.util.StringHelper;
-import com.vaguehope.morrigan.util.Objs;
 
 public class DidlItem extends EphemeralItem {
 
@@ -50,6 +49,9 @@ public class DidlItem extends EphemeralItem {
 //	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 //	Resource access.
 
+	/**
+	 * Used by ContentDirectoryDb's hasFile() and getByFile().
+	 */
 	@Override
 	public String getRemoteId () {
 		return this.item.getId();
@@ -117,20 +119,6 @@ public class DidlItem extends EphemeralItem {
 	@Override
 	public int getHeight () {
 		return this.primaryRes.getResolutionY();
-	}
-
-	@Override
-	public int hashCode () {
-		return Objs.hash(getRemoteId());
-	}
-
-	@Override
-	public boolean equals (final Object obj) {
-		if (obj == this) return true;
-		if (obj == null) return false;
-		if (!(obj instanceof DidlItem)) return false;
-		final DidlItem that = (DidlItem) obj;
-		return Objs.equals(getRemoteId(), that.getRemoteId());
 	}
 
 }

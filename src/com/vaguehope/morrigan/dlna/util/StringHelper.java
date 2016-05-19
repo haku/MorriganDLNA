@@ -27,8 +27,17 @@ public final class StringHelper {
 		return s.toString();
 	}
 
+	public static boolean blank (final String s) {
+		return s == null || s.trim().length() < 1;
+	}
+
 	public static boolean notBlank (final String s) {
 		return s != null && s.trim().length() > 0;
+	}
+
+	public static String removeStart (final String s, final String remove) {
+		if (s.startsWith(remove)) return s.substring(remove.length());
+		return s;
 	}
 
 }

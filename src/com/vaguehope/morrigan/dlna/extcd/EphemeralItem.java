@@ -8,10 +8,27 @@ import com.vaguehope.morrigan.model.media.IMediaItem;
 import com.vaguehope.morrigan.model.media.IMediaPicture;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem;
+import com.vaguehope.morrigan.util.Objs;
 
 public abstract class EphemeralItem implements IMixedMediaItem {
 
 	public EphemeralItem () {}
+
+//	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+	@Override
+	public int hashCode () {
+		return Objs.hash(getRemoteId());
+	}
+
+	@Override
+	public boolean equals (final Object obj) {
+		if (obj == this) return true;
+		if (obj == null) return false;
+		if (!(obj instanceof EphemeralItem)) return false;
+		final EphemeralItem that = (EphemeralItem) obj;
+		return Objs.equals(getRemoteId(), that.getRemoteId());
+	}
 
 //	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 //	Might later be variable metadata.

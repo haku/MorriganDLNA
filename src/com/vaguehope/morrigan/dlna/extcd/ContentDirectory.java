@@ -15,6 +15,7 @@ import org.fourthline.cling.support.contentdirectory.callback.Search;
 import org.fourthline.cling.support.model.BrowseFlag;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.Res;
+import org.fourthline.cling.support.model.container.Container;
 import org.fourthline.cling.support.model.item.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,10 @@ import com.vaguehope.sqlitewrapper.DbException;
 
 public class ContentDirectory {
 
+	static final String SEARCH_BY_ID_PREFIX = "id=";
 	private static final String ROOT_CONTENT_ID = "0"; // Root id of '0' is in the spec.
+	private static final String TYPE_CRITERIA = "(upnp:class derivedfrom \"object.item.videoItem\" or upnp:class derivedfrom \"object.item.audioItem\")";
+
 	private static final long SLEEP_BEFORE_RETRY_MILLIS = 500L;
 	private static final int ACTION_TIMEOUT_SECONDS = 10;
 	private static final Logger LOG = LoggerFactory.getLogger(ContentDirectory.class);
@@ -95,7 +99,7 @@ public class ContentDirectory {
 			}
 
 			@Override
-			public void received (final ActionInvocation actionInvocation, final DIDLContent didl) {
+			public void received (final ActionInvocation invocation, final DIDLContent didl) {
 				ref.set(didl);
 				cdl.countDown();
 			}
@@ -117,14 +121,84 @@ public class ContentDirectory {
 	}
 
 	public List<IMixedMediaItem> search (final String term, final int maxResults) throws DbException {
-		final String typeCrit = "(upnp:class derivedfrom \"object.item.videoItem\" or upnp:class derivedfrom \"object.item.audioItem\")";
-		final String searchCriteria;
-		if (StringHelper.notBlank(term) && !"*".equals(term)) {
-			searchCriteria = String.format("(%s and dc:title contains \"%s\")", typeCrit, term);
+		if (StringHelper.blank(term) || "*".equals(term)) {
+			return dlnaBrowse(maxResults);
 		}
-		else {
-			searchCriteria = typeCrit;
+		else if (term.startsWith(SEARCH_BY_ID_PREFIX)) {
+			return dlnaBrowse(StringHelper.removeStart(term, SEARCH_BY_ID_PREFIX), maxResults);
 		}
+		return dlnaSearch(term, maxResults);
+	}
+
+	private List<IMixedMediaItem> dlnaBrowse (final int maxResults) throws DbException {
+		return dlnaBrowse(ROOT_CONTENT_ID, maxResults);
+	}
+
+	private List<IMixedMediaItem> dlnaBrowse (final String containerId, final int maxResults) throws DbException {
+		final CountDownLatch cdl = new CountDownLatch(2);
+		final AtomicReference<DIDLContent> refMetadata = new AtomicReference<DIDLContent>();
+		final AtomicReference<DIDLContent> refChildren = new AtomicReference<DIDLContent>();
+		final AtomicReference<String> errMetadata = new AtomicReference<String>();
+		final AtomicReference<String> errChildren = new AtomicReference<String>();
+
+		this.controlPoint.execute(new Browse(this.contentDirectory, containerId, BrowseFlag.METADATA, Browse.CAPS_WILDCARD, 0, 1L) {
+			@Override
+			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
+				final String msg = "Failed to get container metadata: " + defaultMsg;
+				LOG.warn(msg);
+				errMetadata.set(msg);
+				cdl.countDown();
+			}
+
+			@Override
+			public void received (final ActionInvocation invocation, final DIDLContent didl) {
+				refMetadata.set(didl);
+				cdl.countDown();
+			}
+
+			@Override
+			public void updateStatus (final Status status) {
+				// Unused.
+			}
+		});
+
+		this.controlPoint.execute(new Browse(this.contentDirectory, containerId, BrowseFlag.DIRECT_CHILDREN, Browse.CAPS_WILDCARD, 0, (long) maxResults) {
+			@Override
+			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
+				final String msg = "Failed to browse container: " + defaultMsg;
+				LOG.warn(msg);
+				errChildren.set(msg);
+				cdl.countDown();
+			}
+
+			@Override
+			public void received (final ActionInvocation invocation, final DIDLContent didl) {
+				refChildren.set(didl);
+				cdl.countDown();
+			}
+
+			@Override
+			public void updateStatus (final Status status) {
+				// Unused.
+			}
+		});
+
+		await(cdl, "Browse '%s' on content directory '%s'.", containerId, this.contentDirectory);
+		if (refMetadata.get() == null) throw new DbException(errMetadata.get());
+		if (refChildren.get() == null) throw new DbException(errChildren.get());
+
+		final List<IMixedMediaItem> ret = new ArrayList<IMixedMediaItem>();
+		if (refMetadata.get().getContainers().size() > 0) {
+			final String parentId = refMetadata.get().getContainers().get(0).getParentID();
+			if (!"-1".equals(parentId)) ret.add(new DidlContainer(parentId, ".."));
+		}
+		ret.addAll(didlContainersToMnItems(refChildren.get().getContainers()));
+		ret.addAll(didlItemsToMnItems(refChildren.get().getItems()));
+		return ret;
+	}
+
+	private List<IMixedMediaItem> dlnaSearch (final String term, final int maxResults) throws DbException {
+		final String searchCriteria = String.format("(%s and dc:title contains \"%s\")", TYPE_CRITERIA, term);
 
 		final CountDownLatch cdl = new CountDownLatch(1);
 		final AtomicReference<DIDLContent> ref = new AtomicReference<DIDLContent>();
@@ -150,9 +224,18 @@ public class ContentDirectory {
 				// Unused.
 			}
 		});
+
 		await(cdl, "Search '%s' on content directory '%s'.", term, this.contentDirectory);
 		if (ref.get() == null) throw new DbException(err.get());
 		return didlItemsToMnItems(ref.get().getItems());
+	}
+
+	private static List<IMixedMediaItem> didlContainersToMnItems (final List<Container> containers) {
+		final List<IMixedMediaItem> ret = new ArrayList<IMixedMediaItem>();
+		for (final Container container : containers) {
+			ret.add(new DidlContainer(container));
+		}
+		return ret;
 	}
 
 	private static List<IMixedMediaItem> didlItemsToMnItems (final List<Item> items) {
