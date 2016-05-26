@@ -21,14 +21,16 @@ public class DidlItem extends EphemeralItem {
 	private final Res primaryRes;
 	private final MediaType mediaType;
 	private final Res artRes;
+	private final Metadata metadata;
 	private final int durationSeconds;
 	private final Date dateAdded;
 
-	public DidlItem (final Item item, final Res primaryRes, final MediaType mediaType, final Res artRes) {
+	public DidlItem (final Item item, final Res primaryRes, final MediaType mediaType, final Res artRes, final Metadata metadata) {
 		this.item = item;
 		this.primaryRes = primaryRes;
 		this.mediaType = mediaType;
 		this.artRes = artRes;
+		this.metadata = metadata;
 		this.durationSeconds = (int) (StringHelper.notBlank(primaryRes.getDuration()) ? ModelUtil.fromTimeString(primaryRes.getDuration()) : 0);
 		this.dateAdded = findDate(item);
 	}
@@ -120,5 +122,24 @@ public class DidlItem extends EphemeralItem {
 	public int getHeight () {
 		return this.primaryRes.getResolutionY();
 	}
+
+//	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//	Persisted metadata.
+
+	@Override
+	public Date getDateLastPlayed () {
+		return this.metadata.getDateLastPlayed();
+	}
+
+	@Override
+	public long getStartCount () {
+		return this.metadata.getStartCount();
+	}
+
+	@Override
+	public long getEndCount () {
+		return this.metadata.getEndCount();
+	}
+
 
 }

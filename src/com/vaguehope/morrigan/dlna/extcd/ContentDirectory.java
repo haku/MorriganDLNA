@@ -39,12 +39,14 @@ public class ContentDirectory {
 
 	private final ControlPoint controlPoint;
 	private final RemoteService contentDirectory;
+	private final MetadataStorage metadataStorage;
 
 	private final Cache<String, IMixedMediaItem> itemCache = new Cache<String, IMixedMediaItem>(100);
 
-	public ContentDirectory (final ControlPoint controlPoint, final RemoteService contentDirectory) {
+	public ContentDirectory (final ControlPoint controlPoint, final RemoteService contentDirectory, final MetadataStorage metadataStorage) {
 		this.controlPoint = controlPoint;
 		this.contentDirectory = contentDirectory;
+		this.metadataStorage = metadataStorage;
 	}
 
 	public IMixedMediaItem fetchItemByIdWithRetry (final String remoteId, final int maxTries) throws DbException {
@@ -238,7 +240,7 @@ public class ContentDirectory {
 		return ret;
 	}
 
-	private static List<IMixedMediaItem> didlItemsToMnItems (final List<Item> items) {
+	private List<IMixedMediaItem> didlItemsToMnItems (final List<Item> items) throws DbException {
 		final List<IMixedMediaItem> ret = new ArrayList<IMixedMediaItem>();
 		for (final Item item : items) {
 			ret.add(didlItemToMnItem(item));
@@ -246,7 +248,7 @@ public class ContentDirectory {
 		return ret;
 	}
 
-	private static IMixedMediaItem didlItemToMnItem (final Item item) {
+	private IMixedMediaItem didlItemToMnItem (final Item item) throws DbException {
 		Res primaryRes = null;
 		MediaType mediaType = MediaType.UNKNOWN;
 		Res artRes = null;
@@ -283,7 +285,9 @@ public class ContentDirectory {
 			throw new IllegalArgumentException("No media res found for item: " + sb.toString());
 		}
 
-		return new DidlItem(item, primaryRes, mediaType, artRes);
+		final Metadata metadata = this.metadataStorage.getMetadataProxy(item.getId());
+
+		return new DidlItem(item, primaryRes, mediaType, artRes, metadata);
 	}
 
 	private static void await (final CountDownLatch cdl, final String msgFormat, final Object... msgArgs) {
