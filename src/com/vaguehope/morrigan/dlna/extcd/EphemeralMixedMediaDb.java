@@ -359,6 +359,11 @@ public abstract class EphemeralMixedMediaDb implements IMixedMediaDb {
 	}
 
 	@Override
+	public void setItemEnabled (final IMixedMediaItem item, final boolean value, final Date lastModified) throws MorriganException {
+		throw new UnsupportedOperationException("Not supported.");
+	}
+
+	@Override
 	public void setItemMissing (final IMixedMediaItem item, final boolean value) throws MorriganException {
 		throw new UnsupportedOperationException("Not supported.");
 	}

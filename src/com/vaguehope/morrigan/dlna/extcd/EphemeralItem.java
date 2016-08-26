@@ -72,6 +72,11 @@ public abstract class EphemeralItem implements IMixedMediaItem {
 	}
 
 	@Override
+	public Date enabledLastModified () {
+		return null;
+	}
+
+	@Override
 	public boolean isMissing () {
 		return false;
 	}
@@ -144,6 +149,11 @@ public abstract class EphemeralItem implements IMixedMediaItem {
 
 	@Override
 	public boolean setEnabled (final boolean enabled) {
+		throw new UnsupportedOperationException("Not implemented.");
+	}
+
+	@Override
+	public boolean setEnabled (final boolean enabled, final Date lastModified) {
 		throw new UnsupportedOperationException("Not implemented.");
 	}
 
