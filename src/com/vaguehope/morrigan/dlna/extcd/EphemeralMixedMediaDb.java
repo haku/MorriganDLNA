@@ -15,6 +15,7 @@ import com.vaguehope.morrigan.model.db.IDbItem;
 import com.vaguehope.morrigan.model.exceptions.MorriganException;
 import com.vaguehope.morrigan.model.media.DirtyState;
 import com.vaguehope.morrigan.model.media.DurationData;
+import com.vaguehope.morrigan.model.media.FileExistance;
 import com.vaguehope.morrigan.model.media.IMediaItemDb;
 import com.vaguehope.morrigan.model.media.IMediaItemStorageLayer.SortDirection;
 import com.vaguehope.morrigan.model.media.IMediaPicture;
@@ -134,8 +135,8 @@ public abstract class EphemeralMixedMediaDb implements IMixedMediaDb {
 	}
 
 	@Override
-	public boolean hasFile (final File file) throws MorriganException, DbException {
-		return false;
+	public FileExistance hasFile (final File file) throws MorriganException, DbException {
+		return FileExistance.UNKNOWN;
 	}
 
 	@Override

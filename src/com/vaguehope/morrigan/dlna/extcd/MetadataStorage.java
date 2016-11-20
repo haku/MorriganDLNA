@@ -69,7 +69,7 @@ public class MetadataStorage {
 		final Metadata cached = this.cache.get(remoteId);
 		if (cached != null) return cached;
 
-		if (!this.storage.hasFile(remoteId)) {
+		if (!this.storage.hasFile(remoteId).isKnown()) {
 			this.cache.putIfAbsent(remoteId, Metadata.EMPTY);
 			return Metadata.EMPTY;
 		}

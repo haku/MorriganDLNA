@@ -9,6 +9,7 @@ import org.fourthline.cling.model.meta.RemoteService;
 
 import com.vaguehope.morrigan.model.db.IDbColumn;
 import com.vaguehope.morrigan.model.exceptions.MorriganException;
+import com.vaguehope.morrigan.model.media.FileExistance;
 import com.vaguehope.morrigan.model.media.IMediaItemStorageLayer.SortDirection;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem;
@@ -62,8 +63,10 @@ public class ContentDirectoryDb extends EphemeralMixedMediaDb {
 	}
 
 	@Override
-	public boolean hasFile (final String remoteId) throws MorriganException, DbException {
-		return this.contentDirectory.fetchItemByIdWithRetry(remoteId, MAX_TRIES) != null;
+	public FileExistance hasFile (final String remoteId) throws MorriganException, DbException {
+		return this.contentDirectory.fetchItemByIdWithRetry(remoteId, MAX_TRIES) != null
+				? FileExistance.EXISTS
+				: FileExistance.UNKNOWN;
 	}
 
 	@Override
