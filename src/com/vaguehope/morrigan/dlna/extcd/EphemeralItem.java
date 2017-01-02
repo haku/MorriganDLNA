@@ -62,6 +62,11 @@ public abstract class EphemeralItem implements IMixedMediaItem {
 	}
 
 	@Override
+	public File getFile () {
+		return null;
+	}
+
+	@Override
 	public File findCoverArt () {
 		return null;
 	}

@@ -1,5 +1,6 @@
 package com.vaguehope.morrigan.dlna.extcd;
 
+import java.io.File;
 import java.util.Date;
 
 import com.vaguehope.morrigan.model.media.IMixedMediaItem;
@@ -8,15 +9,22 @@ public class ItemWithFilepath extends EphemeralItem {
 
 	private final IMixedMediaItem item;
 	private final String filepath;
+	private final File file;
 
 	public ItemWithFilepath (final IMixedMediaItem item, final String filepath) {
 		this.item = item;
 		this.filepath = filepath;
+		this.file = new File(filepath);
 	}
 
 	@Override
 	public String getFilepath () {
 		return this.filepath;
+	}
+
+	@Override
+	public File getFile () {
+		return this.file;
 	}
 
 	@Override
