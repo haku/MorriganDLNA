@@ -303,6 +303,8 @@ public class DlnaPlayer extends AbstractPlayer {
 		setCurrentItem(state.getCurrentItem());
 		this.restorePositionState = state;
 		state.addItemsToQueue(getQueue());
+
+		markStateRestoreAttempted();
 		LOG.info("Restored {}: {}.", this.uid, state);
 	}
 
