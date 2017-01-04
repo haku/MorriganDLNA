@@ -82,9 +82,12 @@ public class DlnaPlayer extends AbstractPlayer {
 	}
 
 	@Override
-	protected void loadAndPlay (final PlayItem item) throws Exception {
+	protected void loadAndPlay (final PlayItem item, final File altFile) throws DlnaException {
 		final String id;
-		if (StringHelper.notBlank(item.getTrack().getRemoteId())) {
+		if (altFile != null) {
+			id = this.mediaFileLocator.fileId(altFile);
+		}
+		else if (StringHelper.notBlank(item.getTrack().getRemoteId())) {
 			id = item.getTrack().getRemoteId();
 		}
 		else {
@@ -94,7 +97,12 @@ public class DlnaPlayer extends AbstractPlayer {
 		final String uri;
 		final MimeType mimeType;
 		final long fileSize;
-		if (StringHelper.notBlank(item.getTrack().getRemoteLocation())) {
+		if (altFile != null) {
+			uri = this.mediaServer.uriForId(id);
+			mimeType = MediaFormat.identify(altFile).toMimeType();
+			fileSize = altFile.length();
+		}
+		else if (StringHelper.notBlank(item.getTrack().getRemoteLocation())) {
 			uri = item.getTrack().getRemoteLocation();
 			mimeType = MimeType.valueOf(item.getTrack().getMimeType());
 			fileSize = item.getTrack().getFileSize();
@@ -225,7 +233,7 @@ public class DlnaPlayer extends AbstractPlayer {
 	}
 
 	@Override
-	public PlayState getPlayState () {
+	public PlayState getEnginePlayState () {
 		final PlayState ps = this.playerEventCache.getPlayState();
 		if (ps != null) return ps;
 		return PlayState.STOPPED;

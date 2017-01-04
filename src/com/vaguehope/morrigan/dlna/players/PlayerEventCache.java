@@ -7,12 +7,14 @@ import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.Player.PlayerEventListener;
+import com.vaguehope.morrigan.player.transcode.Transcode;
 
 public class PlayerEventCache implements PlayerEventListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PlayerEventCache.class);
 
 	private volatile PlaybackOrder playbackOrder;
+	private volatile Transcode transcode;
 	private volatile PlayItem currentItem;
 	private volatile PlayState playState;
 	private volatile long position = -1;
@@ -21,6 +23,11 @@ public class PlayerEventCache implements PlayerEventListener {
 	@Override
 	public void playOrderChanged (final PlaybackOrder newPlaybackOrder) {
 		this.playbackOrder = newPlaybackOrder;
+	}
+
+	@Override
+	public void transcodeChanged (final Transcode newTranscode) {
+		this.transcode = newTranscode;
 	}
 
 	@Override
@@ -46,6 +53,10 @@ public class PlayerEventCache implements PlayerEventListener {
 
 	public PlaybackOrder getPlaybackOrder () {
 		return this.playbackOrder;
+	}
+
+	public Transcode getTranscode () {
+		return this.transcode;
 	}
 
 	public PlayItem getCurrentItem () {
