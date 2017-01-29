@@ -1,5 +1,6 @@
 package com.vaguehope.morrigan.dlna;
 
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.fourthline.cling.DefaultUpnpServiceConfiguration;
 import org.fourthline.cling.transport.impl.apache.StreamClientConfigurationImpl;
 import org.fourthline.cling.transport.impl.apache.StreamClientImpl;
@@ -18,7 +19,14 @@ class MyUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration {
 
 	@Override
 	public StreamClient createStreamClient () {
-		return new StreamClientImpl(new StreamClientConfigurationImpl(getSyncProtocolExecutorService()));
+		final StreamClientConfigurationImpl config = new StreamClientConfigurationImpl(getSyncProtocolExecutorService());
+		config.setTimeoutSeconds(10);
+		return new StreamClientImpl(config) {
+			{
+				this.httpClient.setHttpRequestRetryHandler(
+						new DefaultHttpRequestRetryHandler(1, true));
+			}
+		};
 	}
 
 	@Override
