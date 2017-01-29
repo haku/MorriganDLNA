@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.fourthline.cling.binding.annotations.AnnotationLocalServiceBinder;
+import org.fourthline.cling.model.Command;
 import org.fourthline.cling.model.DefaultServiceManager;
 import org.fourthline.cling.model.ValidationException;
 import org.fourthline.cling.model.meta.DeviceDetails;
@@ -67,10 +68,32 @@ public class MediaServerDeviceFactory {
 				final ContentAdaptor contentAdaptor = new ContentAdaptor(mediaFactory, mediaServer, mediaFileLocator);
 				return new ContentDirectoryService(contentAdaptor, new SearchEngine(contentAdaptor, mediaFactory));
 			}
+
+			@Override
+			public void execute (final Command<ContentDirectoryService> cmd) throws Exception {
+				try {
+					super.execute(cmd);
+				}
+				catch (final Exception e) {
+					LOG.warn("Action failed: " + cmd, e);
+					throw e;
+				}
+			}
 		});
 
 		final LocalService<ConnectionManagerService> connManSrv = new AnnotationLocalServiceBinder().read(ConnectionManagerService.class);
-		connManSrv.setManager(new DefaultServiceManager<ConnectionManagerService>(connManSrv, ConnectionManagerService.class));
+		connManSrv.setManager(new DefaultServiceManager<ConnectionManagerService>(connManSrv, ConnectionManagerService.class) {
+			@Override
+			public void execute (final Command<ConnectionManagerService> cmd) throws Exception {
+				try {
+					super.execute(cmd);
+				}
+				catch (final Exception e) {
+					LOG.warn("Action failed: " + cmd, e);
+					throw e;
+				}
+			}
+		});
 
 		this.localDevice = new LocalDevice(new DeviceIdentity(usi, MIN_ADVERTISEMENT_AGE_SECONDS), type, details, icon, new LocalService[] { contDirSrv, connManSrv });
 	}
