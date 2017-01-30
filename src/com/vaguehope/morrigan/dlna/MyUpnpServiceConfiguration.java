@@ -19,7 +19,12 @@ class MyUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration {
 
 	@Override
 	public StreamClient createStreamClient () {
-		final StreamClientConfigurationImpl config = new StreamClientConfigurationImpl(getSyncProtocolExecutorService());
+		final StreamClientConfigurationImpl config = new StreamClientConfigurationImpl(getSyncProtocolExecutorService()) {
+			@Override
+			public boolean getStaleCheckingEnabled () {
+				return true;
+			}
+		};
 		config.setTimeoutSeconds(10);
 		return new StreamClientImpl(config) {
 			{
