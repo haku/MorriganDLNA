@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.DlnaException;
+import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.player.Player.PlayerEventListener;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
@@ -113,11 +114,12 @@ final class WatcherTask implements Runnable {
 			cancel();
 			return;
 		}
-		// Cancelled /
+		// Cancelled?  Rendered failed during playback or decided to do something else.
 		if (!uri.equals(remoteUri)) { // Renderer is playing a different track.
 			this.listener.currentItemChanged(null); // TODO parse currentURIMetadata and create mock item with track title?
 			cancel();
 			LOG.info("Watcher cancelled; renderer's currentUri changed to: {}.", remoteUri);
+			this.listener.playStateChanged(PlayState.STOPPED);
 			return;
 		}
 
