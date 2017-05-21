@@ -1,26 +1,27 @@
 package com.vaguehope.morrigan.dlna.httpserver;
 
 import java.net.InetAddress;
-import java.net.SocketException;
-import java.util.List;
-
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-
-import com.vaguehope.morrigan.dlna.util.NetHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MediaServer {
 
 	private static final int HTTP_PORT = 29085;
+	private static final Logger LOG = LoggerFactory.getLogger(MediaServer.class);
 
 	private final Server server;
+	private final String bindAddress;
 
-	public MediaServer (final FileLocator fileLocator) {
-		this.server = makeContentServer(fileLocator);
+	public MediaServer (final FileLocator fileLocator, final InetAddress bindAddress) {
+		if (bindAddress == null) throw new IllegalArgumentException("bindAddress must not be null.");
+		this.bindAddress = bindAddress.getHostAddress();
+		this.server = makeContentServer(fileLocator, this.bindAddress);
 	}
 
 	public void start () {
@@ -45,18 +46,11 @@ public class MediaServer {
 		return String.format("%s/%s", getExternalHttpUrl(), id);
 	}
 
-	private static String getExternalHttpUrl () {
-		try {
-			final List<InetAddress> addresses = NetHelper.getIpAddresses();
-			final InetAddress address = addresses.iterator().next();
-			return "http://" + address.getHostAddress() + ":" + HTTP_PORT;
-		}
-		catch (SocketException e) {
-			throw new IllegalStateException(e);
-		}
+	private String getExternalHttpUrl () {
+		return "http://" + this.bindAddress + ":" + HTTP_PORT;
 	}
 
-	private static Server makeContentServer (final FileLocator fileLocator) {
+	private static Server makeContentServer (final FileLocator fileLocator, final String bindAddress) {
 		final ServletContextHandler servletHandler = new ServletContextHandler();
 		servletHandler.setContextPath("/");
 		servletHandler.addServlet(new ServletHolder(new ContentServlet(fileLocator)), "/");
@@ -66,14 +60,16 @@ public class MediaServer {
 
 		final Server server = new Server();
 		server.setHandler(handler);
-		server.addConnector(createHttpConnector(HTTP_PORT));
+		server.addConnector(createHttpConnector(bindAddress, HTTP_PORT));
 		return server;
 	}
 
-	private static SelectChannelConnector createHttpConnector (final int port) {
+	private static SelectChannelConnector createHttpConnector (final String hostAddress, final int port) {
 		final SelectChannelConnector connector = new SelectChannelConnector();
 		connector.setStatsOn(false);
+		connector.setHost(hostAddress);
 		connector.setPort(port);
+		LOG.info("Creating connector: {}:{}", hostAddress, port);
 		return connector;
 	}
 

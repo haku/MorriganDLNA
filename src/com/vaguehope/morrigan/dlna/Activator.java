@@ -3,6 +3,7 @@ package com.vaguehope.morrigan.dlna;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,8 +28,11 @@ import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.players.PlayerHolder;
 import com.vaguehope.morrigan.dlna.players.PlayerRegisterListener;
 import com.vaguehope.morrigan.dlna.util.LogHelper;
+import com.vaguehope.morrigan.dlna.util.NetHelper;
 import com.vaguehope.morrigan.model.media.MediaFactoryTracker;
 import com.vaguehope.morrigan.player.PlayerStateStorage;
+import com.vaguehope.morrigan.server.ServerConfig;
+import com.vaguehope.morrigan.util.StringHelper;
 
 public class Activator implements BundleActivator {
 
@@ -46,12 +50,15 @@ public class Activator implements BundleActivator {
 	public void start (final BundleContext context) throws ValidationException, IOException {
 		LogHelper.bridgeJul();
 
+		final InetAddress bindAddress = findBindAddress();
+		if (bindAddress == null) throw new IllegalStateException("Failed to find bind address.");
+
 		this.scheduledExecutor = Executors.newScheduledThreadPool(1);
 
 		this.mediaFactoryTracker = new MediaFactoryTracker(context);
 		final MediaFileLocator mediaFileLocator = new MediaFileLocator(this.mediaFactoryTracker);
 
-		this.mediaServer = new MediaServer(mediaFileLocator);
+		this.mediaServer = new MediaServer(mediaFileLocator, bindAddress);
 		this.mediaServer.start();
 
 		this.upnpService = makeUpnpServer();
@@ -72,6 +79,21 @@ public class Activator implements BundleActivator {
 		this.upnpService.getControlPoint().search();
 
 		LOG.info("DLNA started.");
+	}
+
+	private InetAddress findBindAddress () throws IOException {
+		final InetAddress address;
+		final String cfgBindIp = new ServerConfig().getBindIp();
+		if (StringHelper.notBlank(cfgBindIp)) {
+			address = InetAddress.getByName(cfgBindIp);
+			LOG.info("using address: {}", address);
+		}
+		else {
+			final List<InetAddress> addresses = NetHelper.getIpAddresses();
+			address = addresses.iterator().next();
+			LOG.info("addresses: {} using address: {}", addresses, address);
+		}
+		return address;
 	}
 
 	private static UpnpService makeUpnpServer () throws IOException {
