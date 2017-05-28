@@ -25,9 +25,9 @@ import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
 import com.vaguehope.morrigan.player.AbstractPlayer;
-import com.vaguehope.morrigan.player.OrderHelper;
-import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
+import com.vaguehope.morrigan.player.OrderResolver;
 import com.vaguehope.morrigan.player.PlayItem;
+import com.vaguehope.morrigan.player.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.util.Objs;
 
@@ -230,7 +230,7 @@ public class DlnaPlayer extends AbstractPlayer {
 		final PlayItem lastItem = getCurrentItem();
 		if (lastItem == null || !lastItem.hasList()) return null;
 
-		final IMediaTrack nextTrack = OrderHelper.getNextTrack(lastItem.getList(), lastItem.getTrack(), getPlaybackOrder());
+		final IMediaTrack nextTrack = getOrderResolver().getNextTrack(lastItem.getList(), lastItem.getTrack(), getPlaybackOrder());
 		if (nextTrack != null) return new PlayItem(lastItem.getList(), nextTrack);
 
 		return null;

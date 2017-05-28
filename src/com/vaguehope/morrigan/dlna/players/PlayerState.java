@@ -3,7 +3,7 @@ package com.vaguehope.morrigan.dlna.players;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.vaguehope.morrigan.player.OrderHelper.PlaybackOrder;
+import com.vaguehope.morrigan.player.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerQueue;
 
