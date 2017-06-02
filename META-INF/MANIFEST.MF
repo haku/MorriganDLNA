@@ -17,14 +17,10 @@ Bundle-ClassPath: .,
  lib/seamless-http-1.1.0.jar,
  lib/seamless-xml-1.1.0.jar,
  lib/httpcore-4.3.1.jar,
- lib/httpclient-4.3.2.jar,
- lib/logback-classic-1.1.2.jar,
- lib/logback-core-1.1.2.jar,
- lib/slf4j-api-1.7.7.jar,
- lib/jcl-over-slf4j-1.7.7.jar,
- lib/jul-to-slf4j-1.7.7.jar
+ lib/httpclient-4.3.2.jar
 Require-Bundle: com.vaguehope.morrigan.jetty
-Import-Package: com.vaguehope.morrigan.config,
+Import-Package: ch.qos.logback.classic,
+ com.vaguehope.morrigan.config,
  com.vaguehope.morrigan.engines.playback,
  com.vaguehope.morrigan.model,
  com.vaguehope.morrigan.model.db,
@@ -35,5 +31,7 @@ Import-Package: com.vaguehope.morrigan.config,
  com.vaguehope.morrigan.transcode,
  com.vaguehope.morrigan.util,
  com.vaguehope.sqlitewrapper,
- org.osgi.framework
+ org.apache.commons.logging,
+ org.osgi.framework,
+ org.slf4j
 Export-Package: com.vaguehope.morrigan.dlna

@@ -1,19 +1,32 @@
 package com.vaguehope.morrigan.dlna.util;
 
-import java.util.logging.LogManager;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
-import org.slf4j.bridge.SLF4JBridgeHandler;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 
 public final class LogHelper {
+
+	private static final Map<String, Level> LEVELS = new HashMap<String, Level>();
+	static {
+		LEVELS.put("org.fourthline.cling.binding.xml.ServiceDescriptorBinder", Level.ERROR);
+		LEVELS.put("org.fourthline.cling.protocol.RetrieveRemoteDescriptors", Level.ERROR);
+		LEVELS.put("org.fourthline.cling.transport.spi.StreamClient", Level.WARN);
+	}
 
 	private LogHelper () {
 		throw new AssertionError();
 	}
 
-	public static void bridgeJul() {
-		LogManager.getLogManager().reset();
-		SLF4JBridgeHandler.removeHandlersForRootLogger();
-		SLF4JBridgeHandler.install();
+	public static void setLoggingLevels() {
+		final LoggerContext loggerContext = (LoggerContext)LoggerFactory.getILoggerFactory();
+		for (final Entry<String, Level> e : LEVELS.entrySet()) {
+			loggerContext.getLogger(e.getKey()).setLevel(e.getValue());
+		}
 	}
 
 }
