@@ -28,11 +28,12 @@ final class WatcherTask implements Runnable {
 			final ScheduledExecutorService scheduledExecutor,
 			final String uriToWatch,
 			final AtomicReference<String> currentUri,
+			final int trackDurationSeconds,
 			final AvTransport avTransport,
 			final PlayerEventListener listener,
 			final Runnable onStartOfTrack, final Runnable onEndOfTrack
 			) {
-		final WatcherTask task = new WatcherTask(uriToWatch, currentUri, avTransport, listener, onStartOfTrack, onEndOfTrack);
+		final WatcherTask task = new WatcherTask(uriToWatch, currentUri, trackDurationSeconds, avTransport, listener, onStartOfTrack, onEndOfTrack);
 		final ScheduledFuture<?> scheduledFuture = scheduledExecutor.scheduleWithFixedDelay(task, 1, 1, TimeUnit.SECONDS);
 		task.setFuture(scheduledFuture);
 		return task;
@@ -40,6 +41,7 @@ final class WatcherTask implements Runnable {
 
 	private final String uriToWatch;
 	private final AtomicReference<String> currentUri;
+	private final int trackDurationSeconds;
 	private final AvTransport avTransport;
 	private final PlayerEventListener listener;
 	private final Runnable onStartOfTrack;
@@ -54,10 +56,13 @@ final class WatcherTask implements Runnable {
 	private volatile long lastElapsedSeconds = -1;
 	private volatile long lastDurationSeconds = -1;
 
-	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri, final AvTransport avTransport,
+	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri,
+			final int trackDurationSeconds,
+			final AvTransport avTransport,
 			final PlayerEventListener listener, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
 		this.uriToWatch = uriToWatch;
 		this.currentUri = currentUri;
+		this.trackDurationSeconds = trackDurationSeconds;
 		this.avTransport = avTransport;
 		this.listener = listener;
 		this.onStartOfTrack = onStartOfTrack;
@@ -100,10 +105,15 @@ final class WatcherTask implements Runnable {
 			return;
 		}
 
+		// If we already know the duration, prefer that to trusting the remote device.
+		final long durSecs = this.trackDurationSeconds > 1
+				? this.trackDurationSeconds
+				: this.lastDurationSeconds;
+
 		// Basically, does it look like its been playing OK for a bit?
 		final boolean probabblyBeenPlayingOk =
-				this.lastDurationSeconds > 0
-				? (this.lastElapsedSeconds / (double) this.lastDurationSeconds) > 0.9
+				durSecs > 0
+				? (this.lastElapsedSeconds / (double) durSecs) > 0.9
 				: this.lastElapsedSeconds > 30;
 
 		final MediaInfo mi = this.avTransport.getMediaInfo();

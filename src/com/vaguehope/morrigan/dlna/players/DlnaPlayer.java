@@ -25,7 +25,6 @@ import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
 import com.vaguehope.morrigan.player.AbstractPlayer;
-import com.vaguehope.morrigan.player.OrderResolver;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayerRegister;
@@ -158,7 +157,10 @@ public class DlnaPlayer extends AbstractPlayer {
 		final WatcherTask oldWatcher = this.watcher.getAndSet(null);
 		if (oldWatcher != null) oldWatcher.cancel();
 
-		final WatcherTask task = WatcherTask.schedule(this.scheduledExecutor, uri, this.currentUri, this.avTransport,
+		final WatcherTask task = WatcherTask.schedule(this.scheduledExecutor,
+				uri, this.currentUri,
+				item.getTrack().getDuration(),
+				this.avTransport,
 				getListeners(),
 				new OnTrackStarted(this, item), new OnTrackComplete(this, item));
 		if (!this.watcher.compareAndSet(null, task)) {
