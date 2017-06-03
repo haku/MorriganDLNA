@@ -1,6 +1,7 @@
 package com.vaguehope.morrigan.dlna.players;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -10,6 +11,7 @@ import org.fourthline.cling.model.ModelUtil;
 import org.fourthline.cling.model.action.ActionInvocation;
 import org.fourthline.cling.model.message.UpnpResponse;
 import org.fourthline.cling.model.meta.RemoteService;
+import org.fourthline.cling.support.avtransport.callback.GetCurrentTransportActions;
 import org.fourthline.cling.support.avtransport.callback.GetMediaInfo;
 import org.fourthline.cling.support.avtransport.callback.GetPositionInfo;
 import org.fourthline.cling.support.avtransport.callback.GetTransportInfo;
@@ -24,6 +26,7 @@ import org.fourthline.cling.support.model.DIDLObject;
 import org.fourthline.cling.support.model.MediaInfo;
 import org.fourthline.cling.support.model.PositionInfo;
 import org.fourthline.cling.support.model.Res;
+import org.fourthline.cling.support.model.TransportAction;
 import org.fourthline.cling.support.model.TransportInfo;
 import org.fourthline.cling.support.model.item.AudioItem;
 import org.fourthline.cling.support.model.item.ImageItem;
@@ -129,13 +132,22 @@ public class AvTransport {
 			}
 
 			@Override
-			public void failure (final ActionInvocation invocation, final UpnpResponse operation, final String defaultMsg) {
-				err.set("Failed to pause: " + defaultMsg);
+			public void failure (final ActionInvocation invocation, final UpnpResponse response, final String defaultMsg) {
+				err.set(String.format("Failed to pause | %s | %s.", defaultMsg, response));
 				cdl.countDown();
 			}
 		});
 		await(cdl, "pause playback on transport '%s'.", this.avTransport);
-		if (err.get() != null) throw new DlnaException(err.get());
+		if (err.get() != null) {
+			try {
+				final TransportAction[] actions = getTransportActions();
+				err.set(err.get() + "  Supported actions: " + Arrays.toString(actions));
+			}
+			catch (final DlnaException e) {
+				// Ignore.
+			}
+			throw new DlnaException(err.get());
+		}
 	}
 
 	public void stop () throws DlnaException {
@@ -219,6 +231,28 @@ public class AvTransport {
 			}
 		});
 		await(cdl, "get media info for transport '%s'.", this.avTransport);
+		if (ref.get() == null || err.get() != null) throw new DlnaException(err.get());
+		return ref.get();
+	}
+
+	public TransportAction[] getTransportActions () throws DlnaException {
+		final CountDownLatch cdl = new CountDownLatch(1);
+		final AtomicReference<String> err = new AtomicReference<String>();
+		final AtomicReference<TransportAction[]> ref = new AtomicReference<TransportAction[]>();
+		this.controlPoint.execute(new GetCurrentTransportActions(this.avTransport) {
+			@Override
+			public void received (final ActionInvocation invocation, final TransportAction[] actions) {
+				ref.set(actions);
+				cdl.countDown();
+			}
+
+			@Override
+			public void failure (final ActionInvocation invocation, final UpnpResponse response, final String defaultMsg) {
+				err.set(String.format("Failed to get transport actions | %s | %s.", defaultMsg, response));
+				cdl.countDown();
+			}
+		});
+		await(cdl, "get actions transport '%s'.", this.avTransport);
 		if (ref.get() == null || err.get() != null) throw new DlnaException(err.get());
 		return ref.get();
 	}
