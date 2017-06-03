@@ -13,6 +13,7 @@ public final class LogHelper {
 
 	private static final Map<String, Level> LEVELS = new HashMap<String, Level>();
 	static {
+		//LEVELS.put("org.fourthline.cling.transport.spi", Level.TRACE); // Wire level debugging.
 		LEVELS.put("org.fourthline.cling.binding.xml.ServiceDescriptorBinder", Level.ERROR);
 		LEVELS.put("org.fourthline.cling.protocol.RetrieveRemoteDescriptors", Level.ERROR);
 		LEVELS.put("org.fourthline.cling.transport.spi.StreamClient", Level.WARN);
