@@ -181,7 +181,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 		// Did the render stop on its own?
 		if (rendererStoppedPlaying) {
-			LOG.info("Assuming playback finished: {}", goToPlay.getId());
+			LOG.info("Assuming playback stopped: {}", goToPlay.getId());
 
 			// Track ended event.
 			if (lopAtEnd) {
@@ -190,14 +190,16 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 				// Make the UI show that the end of the track was reached exactly.
 				getListeners().positionChanged(goToPlay.getDurationSeconds(), goToPlay.getDurationSeconds());
+
+				// Clear goal state.
+				this.goalToPlay = null;
+				this.goalSeekToSeconds = null;
+				this.lastObservedPositionSeconds = 0;
+
+				return PlayState.STOPPED; // Made a change, so return.
 			}
 
-			// Clear goal state.
-			this.goalToPlay = null;
-			this.goalSeekToSeconds = null;
-			this.lastObservedPositionSeconds = 0;
-
-			return PlayState.STOPPED; // Made a change, so return.
+			LOG.info("But track did not play to end, going to try again from {}s...", lopSeconds);
 		}
 
 		// If renderer is between states or a strange state, wait.
@@ -245,15 +247,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					goToPlay.getItem().getTrack().getDuration());
 			this.avTransport.play();
 			LOG.info("Loaded {}.", goToPlay.getId());
-
-			if (lopSeconds > MIN_POSITION_TO_RESTORE_SECONDS) {
-				this.eventQueue.add(Long.valueOf(lopSeconds));
-				LOG.info("Requested restore position: {}s", lopSeconds);
-			}
-			else {
-				this.lastObservedPositionSeconds = 0; // In case something left over.
-			}
-
+			scheduleRestorePosition(lopSeconds);
 			return PlayState.LOADING; // Made a change, so return.
 		}
 
@@ -277,12 +271,15 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					case NO_MEDIA_PRESENT:
 						this.avTransport.play();
 						LOG.info("Started playback.");
+						scheduleRestorePosition(lopSeconds);
 						return PlayState.PLAYING; // Made a change, so return.
+
 					case PAUSED_PLAYBACK:
 					case PAUSED_RECORDING:
 						this.avTransport.play();
 						LOG.info("Resumed.");
 						return PlayState.PLAYING; // Made a change, so return.
+
 					default:
 				}
 			}
@@ -324,6 +321,16 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 
 		return renPlayState;
+	}
+
+	private void scheduleRestorePosition (final long lopSeconds) {
+		if (lopSeconds > MIN_POSITION_TO_RESTORE_SECONDS) {
+			this.eventQueue.add(Long.valueOf(lopSeconds));
+			LOG.info("Scheduled restore position: {}s", lopSeconds);
+		}
+		else {
+			this.lastObservedPositionSeconds = 0; // In case something left over.
+		}
 	}
 
 	private void setCurrentState (final PlayState state) {
