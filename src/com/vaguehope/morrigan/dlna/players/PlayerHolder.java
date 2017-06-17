@@ -102,7 +102,7 @@ public class PlayerHolder {
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
 		final AbstractDlnaPlayer player;
-		if (StringHelper.notBlank(System.getenv("GOALSEEKER"))) {
+		if (StringHelper.blank(System.getenv("DLNA_OLD_PLAYER"))) {
 			player = new GoalSeekingDlnaPlayer(register,
 					this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
 					this.scheduledExecutor);
