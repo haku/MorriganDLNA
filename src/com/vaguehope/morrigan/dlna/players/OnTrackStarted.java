@@ -4,10 +4,10 @@ import com.vaguehope.morrigan.player.PlayItem;
 
 public class OnTrackStarted implements Runnable {
 
-	private final DlnaPlayer dlnaPlayer;
+	private final AbstractDlnaPlayer dlnaPlayer;
 	private final PlayItem item;
 
-	public OnTrackStarted (final DlnaPlayer dlnaPlayer, final PlayItem item) {
+	public OnTrackStarted (final AbstractDlnaPlayer dlnaPlayer, final PlayItem item) {
 		this.dlnaPlayer = dlnaPlayer;
 		this.item = item;
 	}

@@ -32,9 +32,12 @@ import com.vaguehope.morrigan.dlna.util.NetHelper;
 import com.vaguehope.morrigan.model.media.MediaFactoryTracker;
 import com.vaguehope.morrigan.player.PlayerStateStorage;
 import com.vaguehope.morrigan.server.ServerConfig;
+import com.vaguehope.morrigan.util.DaemonThreadFactory;
 import com.vaguehope.morrigan.util.StringHelper;
 
 public class Activator implements BundleActivator {
+
+	private static final int BG_THREADS = 3;
 
 	private static final Logger LOG = LoggerFactory.getLogger(Activator.class);
 
@@ -53,7 +56,7 @@ public class Activator implements BundleActivator {
 		final InetAddress bindAddress = findBindAddress();
 		if (bindAddress == null) throw new IllegalStateException("Failed to find bind address.");
 
-		this.scheduledExecutor = Executors.newScheduledThreadPool(1);
+		this.scheduledExecutor = Executors.newScheduledThreadPool(BG_THREADS, new DaemonThreadFactory("dlna"));
 
 		this.mediaFactoryTracker = new MediaFactoryTracker(context);
 		final MediaFileLocator mediaFileLocator = new MediaFileLocator(this.mediaFactoryTracker);

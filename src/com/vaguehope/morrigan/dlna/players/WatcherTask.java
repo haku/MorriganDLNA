@@ -134,7 +134,7 @@ final class WatcherTask implements Runnable {
 		}
 
 		final TransportInfo ti = this.avTransport.getTransportInfo();
-		this.listener.playStateChanged(DlnaPlayer.transportIntoToPlayState(ti));
+		this.listener.playStateChanged(AbstractDlnaPlayer.transportIntoToPlayState(ti));
 		if (ti == null) {
 			cancel();
 			LOG.info("Watcher cancelled; renderer returned null transport info.");

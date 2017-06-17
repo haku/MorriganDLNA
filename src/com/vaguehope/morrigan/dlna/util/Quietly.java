@@ -27,6 +27,13 @@ public final class Quietly {
 		catch (final InterruptedException e) {}
 	}
 
+	public static void sleep (final long duration, final TimeUnit unit) {
+		try {
+			Thread.sleep(unit.convert(duration, TimeUnit.MILLISECONDS));
+		}
+		catch (final InterruptedException e) {}
+	}
+
 	public static void close (final Closeable c) {
 		try {
 			c.close();

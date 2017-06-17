@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import com.vaguehope.morrigan.dlna.UpnpHelper;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
+import com.vaguehope.morrigan.dlna.util.StringHelper;
 import com.vaguehope.morrigan.player.Player;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.player.PlayerStateStorage;
@@ -36,7 +37,7 @@ public class PlayerHolder {
 
 	private final AtomicBoolean alive = new AtomicBoolean(true);
 	private final Map<UDN, RemoteService> avTransports = new ConcurrentHashMap<UDN, RemoteService>();
-	private final ConcurrentMap<UDN, Set<DlnaPlayer>> players = new ConcurrentHashMap<UDN, Set<DlnaPlayer>>();
+	private final ConcurrentMap<UDN, Set<AbstractDlnaPlayer>> players = new ConcurrentHashMap<UDN, Set<AbstractDlnaPlayer>>();
 	private final Map<String, PlayerState> backedupPlayerState = new ConcurrentHashMap<String, PlayerState>();
 
 
@@ -63,9 +64,9 @@ public class PlayerHolder {
 		checkAlive();
 		final UDN udn = device.getIdentity().getUdn();
 		this.avTransports.remove(udn);
-		final Set<DlnaPlayer> playersFor = this.players.remove(udn);
+		final Set<AbstractDlnaPlayer> playersFor = this.players.remove(udn);
 		if (playersFor != null) {
-			for (final DlnaPlayer player : playersFor) {
+			for (final AbstractDlnaPlayer player : playersFor) {
 				final PlayerState backupState = player.backupState();
 				this.backedupPlayerState.put(player.getUid(), backupState);
 				LOG.info("Backed up {}: {}.", player.getUid(), backupState);
@@ -76,7 +77,7 @@ public class PlayerHolder {
 
 	public void dispose () {
 		if (this.alive.compareAndSet(true, false)) {
-			for (final Set<DlnaPlayer> playersFor : this.players.values()) {
+			for (final Set<AbstractDlnaPlayer> playersFor : this.players.values()) {
 				for (final Player player : playersFor) {
 					player.dispose();
 				}
@@ -100,9 +101,17 @@ public class PlayerHolder {
 	}
 
 	private void registerAvTransport (final UDN udn, final PlayerRegister register, final RemoteService avTransport) {
-		final DlnaPlayer player = new DlnaPlayer(register,
-				this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
-				this.scheduledExecutor);
+		final AbstractDlnaPlayer player;
+		if (StringHelper.notBlank(System.getenv("GOALSEEKER"))) {
+			player = new GoalSeekingDlnaPlayer(register,
+					this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
+					this.scheduledExecutor);
+		}
+		else {
+			player = new DlnaPlayer(register,
+					this.controlPoint, avTransport, this.mediaServer, this.mediaFileLocator,
+					this.scheduledExecutor);
+		}
 
 		final PlayerState previousState = this.backedupPlayerState.get(UpnpHelper.remoteServiceUid(avTransport));
 		if (previousState != null) {
@@ -114,8 +123,8 @@ public class PlayerHolder {
 
 		register.register(player);
 
-		Set<DlnaPlayer> playersFor = this.players.get(udn);
-		if (playersFor == null) this.players.putIfAbsent(udn, new HashSet<DlnaPlayer>());
+		Set<AbstractDlnaPlayer> playersFor = this.players.get(udn);
+		if (playersFor == null) this.players.putIfAbsent(udn, new HashSet<AbstractDlnaPlayer>());
 		playersFor = this.players.get(udn);
 		if (playersFor == null) throw new IllegalStateException();
 		playersFor.add(player);
