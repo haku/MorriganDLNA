@@ -19,15 +19,19 @@ import org.slf4j.LoggerFactory;
 import com.vaguehope.morrigan.dlna.DlnaException;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
+import com.vaguehope.morrigan.dlna.util.Quietly;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
+import com.vaguehope.morrigan.util.ErrorHelper;
 import com.vaguehope.morrigan.util.Objs;
 
 public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
-	private static final int BACK_OFF_AFTER_ERROR_SECONDS = 5;
+	private static final int SLOW_RETRIES_AFTER_SECONDS = 60;
+	private static final int SLOW_RETRIE_DELAY_SECONDS = 10;
+
 	private static final int MIN_POSITION_TO_RECORD_STARTED_SECONDS = 5;
 	private static final int MIN_POSITION_TO_RESTORE_SECONDS = 10;
 	private static final int LOP_WITHIN_END_TO_RECORD_END_SECONDS = 5;
@@ -67,18 +71,34 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 	};
 
+	private volatile long lastSuccessNanos = System.nanoTime();
+
+	private void markLastSuccess () {
+		this.lastSuccessNanos = System.nanoTime();
+	}
+
+	private long secondsSinceLastSuccess () {
+		return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - this.lastSuccessNanos);
+	}
+
 	private void runAndDoNotThrow () {
 		try {
 			readEventQueue();
+
 			final PlayState cState = readStateAndSeekGoal();
 			setCurrentState(cState);
+
+			markLastSuccess();
+		}
+		catch (final DlnaException e) {
+			LOG.warn("DLNA call failed: {}", ErrorHelper.oneLineCauseTrace(e));
 		}
 		catch (final Exception e) {
 			LOG.warn("Unhandled error in event thread.", e);
-			try {
-				Thread.sleep(TimeUnit.SECONDS.toMillis(BACK_OFF_AFTER_ERROR_SECONDS));// Rate limit errors.
-			}
-			catch (final InterruptedException e1) {/* Unused. */}
+		}
+
+		if (secondsSinceLastSuccess() > SLOW_RETRIES_AFTER_SECONDS) {
+			Quietly.sleep(SLOW_RETRIE_DELAY_SECONDS, TimeUnit.SECONDS); // Rate limit errors.
 		}
 	}
 
@@ -138,7 +158,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		// Capture state.
 		final DlnaToPlay goToPlay = this.goalToPlay;
 		final PlayState goState = this.goalState;
-		long lopSeconds = this.lastObservedPositionSeconds;
+		final long lopSeconds = this.lastObservedPositionSeconds;
 
 		// If no goal state, do not do anything.
 		if (goToPlay == null) return PlayState.STOPPED;
