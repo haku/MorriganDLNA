@@ -134,6 +134,12 @@ public class DlnaPlayer extends AbstractDlnaPlayer {
 	}
 
 	@Override
+	protected boolean shouldBePlaying () {
+		PlayState ps = getEnginePlayState();
+		return ps == PlayState.PLAYING || ps == PlayState.LOADING;
+	}
+
+	@Override
 	public void seekTo (final double d) {
 		checkAlive();
 		try {

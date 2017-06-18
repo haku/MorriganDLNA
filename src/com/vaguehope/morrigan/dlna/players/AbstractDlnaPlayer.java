@@ -181,10 +181,10 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
 	protected abstract void dlnaPlay (PlayItem item, String id, String uri, MimeType mimeType, long fileSize, String coverArtUri) throws DlnaException;
 
-	public PlayerState backupState () {
-		// TODO include if actually playing?
+	protected abstract boolean shouldBePlaying ();
 
-		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getCurrentPosition(), getQueue());
+	public PlayerState backupState () {
+		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getCurrentPosition(), shouldBePlaying(), getQueue());
 	}
 
 	void restoreBackedUpState (final PlayerState state) {
@@ -194,7 +194,9 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		this.restorePositionState = state;
 		state.addItemsToQueue(getQueue());
 
-		// TODO if was playing before, resume playback.
+		if (state.isPlaying() && state.getCurrentItem() != null) {
+			loadAndStartPlaying(state.getCurrentItem());
+		}
 
 		markStateRestoreAttempted();
 		LOG.info("Restored {}: {}.", getUid(), state);

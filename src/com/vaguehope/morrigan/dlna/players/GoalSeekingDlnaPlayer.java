@@ -346,6 +346,12 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	}
 
 	@Override
+	protected boolean shouldBePlaying () {
+		// goal state can not be LOADING.
+		return this.goalState == PlayState.PLAYING;
+	}
+
+	@Override
 	public void pausePlaying () {
 		final PlayState playState = getPlayState();
 		if (playState == PlayState.PAUSED) {
