@@ -17,6 +17,7 @@ public final class LogHelper {
 		LEVELS.put("org.fourthline.cling.binding.xml.ServiceDescriptorBinder", Level.ERROR);
 		LEVELS.put("org.fourthline.cling.protocol.RetrieveRemoteDescriptors", Level.ERROR);
 		LEVELS.put("org.fourthline.cling.transport.spi.StreamClient", Level.WARN);
+		LEVELS.put("org.apache.http.impl.client.DefaultHttpClient", Level.WARN);
 	}
 
 	private LogHelper () {
