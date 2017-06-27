@@ -112,7 +112,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 	}
 
 	@Override
-	public int getCurrentTrackDuration () {
+	public int getCurrentTrackDurationFromRenderer () {
 		return this.playerEventCache.getDuration();
 	}
 
