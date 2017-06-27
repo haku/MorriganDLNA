@@ -17,11 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.DlnaException;
+import com.vaguehope.morrigan.dlna.DlnaResponseException;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.Quietly;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
-import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.util.ErrorHelper;
@@ -237,7 +237,15 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		if (!Objs.equals(renUri, goToPlay.getUri())) {
 			if (goState == PlayState.PAUSED) return PlayState.PAUSED; // We would load, but will wait until not paused before doing so.
 
-			LOG.info("loading: {}", goToPlay);
+			LOG.info("Stopping: {}", renUri);
+			try {
+				this.avTransport.stop();
+			}
+			catch (final DlnaResponseException e) { // Specifically not a timeout.
+				LOG.info("Stop before play failed: {}", ErrorHelper.oneLineCauseTrace(e));
+			}
+
+			LOG.info("Loading: {}", goToPlay);
 			this.avTransport.setUri(
 					goToPlay.getId(),
 					goToPlay.getUri(),
@@ -257,8 +265,19 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 				switch (renState) {
 					case PLAYING:
 					case RECORDING:
-						this.avTransport.pause();
-						LOG.info("Paused.");
+						try {
+							this.avTransport.pause();
+							LOG.info("Paused.");
+						}
+						catch (final DlnaResponseException e) {
+							if (e.hasStatusCodeBetween(500, 600)) {
+								this.avTransport.stop();
+								LOG.info("Paused failed, stopped instead.");
+							}
+							else {
+								throw e;
+							}
+						}
 						return PlayState.PAUSED; // Made a change, so return.
 					default:
 				}
@@ -376,10 +395,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 	@Override
 	public void seekTo (final double seekToProportion) {
-		final PlayItem item = getCurrentItem();
-		final IMediaTrack track = item != null ? item.getTrack() : null;
-		final int durationSeconds = track != null ? track.getDuration() : getCurrentTrackDuration();
-
+		final int durationSeconds = getCurrentTrackDuration();
 		if (durationSeconds > 0) {
 			final long seekToSeconds = (long) (durationSeconds * seekToProportion);
 			this.eventQueue.add(Long.valueOf(seekToSeconds));
