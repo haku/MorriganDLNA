@@ -154,6 +154,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 			uri = this.mediaServer.uriForId(id);
 			mimeType = MediaFormat.identify(altFile).toMimeType();
 			fileSize = altFile.length();
+			// FIXME what about altDuration?
 		}
 		else if (StringHelper.notBlank(item.getTrack().getRemoteLocation())) {
 			uri = item.getTrack().getRemoteLocation();
