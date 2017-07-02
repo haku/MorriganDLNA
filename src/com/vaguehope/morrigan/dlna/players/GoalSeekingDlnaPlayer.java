@@ -35,13 +35,16 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 	private static final int MIN_POSITION_TO_RECORD_STARTED_SECONDS = 5;
 	private static final int MIN_POSITION_TO_RESTORE_SECONDS = 10;
-	private static final int LOP_WITHIN_END_TO_RECORD_END_SECONDS = 5;
+
+	// At least 98% of file played, or only 5 seconds left, which ever is sooner.
+	private static final double END_TOLERANCE_MIN_RATIO = 0.98d;
+	private static final int END_TOLERANCE_MIN_SECONDS = 5;
 
 	/**
 	 * If there should be something playing but there is not, wait at least this long before trying to play it again.
 	 * This allows time for session end event to arrive and be processed.
 	 */
-	private static final int WAIT_FOR_STOP_EVENT_TIMEOUT_SECONDS = 5;
+	private static final int WAIT_FOR_STOP_EVENT_TIMEOUT_SECONDS = END_TOLERANCE_MIN_SECONDS + 5;
 
 	private static final Logger LOG = LoggerFactory.getLogger(GoalSeekingDlnaPlayer.class);
 
@@ -190,8 +193,14 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			this.prevRenUri = renUri;
 		}
 
+		// How many seconds of the file MUST be played?
+		final long minPlayedSecondsRatio = (long) (goToPlay.getDurationSeconds() * END_TOLERANCE_MIN_RATIO);
+		final long minPlayedSecondsOffset = goToPlay.getDurationSeconds() - END_TOLERANCE_MIN_SECONDS;
+		final long minPlayedSecondsMin = Math.min(minPlayedSecondsRatio, minPlayedSecondsOffset); // Which ever is easier to achieve.
+		final long minPlayedSeconds = Math.max(minPlayedSecondsMin, 1); // Durations less than one second are going to cause issues.
+
 		// Has the track finished playing?
-		final boolean lopAtEnd = lopSeconds.get() >= goToPlay.getDurationSeconds() - LOP_WITHIN_END_TO_RECORD_END_SECONDS;
+		final boolean lopAtEnd = lopSeconds.get() >= minPlayedSeconds;
 		final boolean trackNotPlaying = renUri == null || renState == TransportState.STOPPED || renState == TransportState.NO_MEDIA_PRESENT;
 		final boolean rendererStoppedPlaying = this.unprocessedPlaybackOfGoalStoppedEvent || (trackNotPlaying && lopAtEnd);
 		this.unprocessedPlaybackOfGoalStoppedEvent = false;
