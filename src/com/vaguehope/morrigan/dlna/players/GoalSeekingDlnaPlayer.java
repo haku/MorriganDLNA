@@ -21,6 +21,7 @@ import com.vaguehope.morrigan.dlna.DlnaResponseException;
 import com.vaguehope.morrigan.dlna.content.MediaFileLocator;
 import com.vaguehope.morrigan.dlna.httpserver.MediaServer;
 import com.vaguehope.morrigan.dlna.util.Quietly;
+import com.vaguehope.morrigan.dlna.util.Timestamped;
 import com.vaguehope.morrigan.engines.playback.IPlaybackEngine.PlayState;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
@@ -35,6 +36,12 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	private static final int MIN_POSITION_TO_RECORD_STARTED_SECONDS = 5;
 	private static final int MIN_POSITION_TO_RESTORE_SECONDS = 10;
 	private static final int LOP_WITHIN_END_TO_RECORD_END_SECONDS = 5;
+
+	/**
+	 * If there should be something playing but there is not, wait at least this long before trying to play it again.
+	 * This allows time for session end event to arrive and be processed.
+	 */
+	private static final int WAIT_FOR_STOP_EVENT_TIMEOUT_SECONDS = 5;
 
 	private static final Logger LOG = LoggerFactory.getLogger(GoalSeekingDlnaPlayer.class);
 
@@ -110,7 +117,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	private volatile DlnaToPlay goalToPlay = null;
 	private volatile PlayState goalState = null;
 	private volatile Long goalSeekToSeconds = null;
-	private volatile long lastObservedPositionSeconds = 0;
+	private volatile Timestamped<Long> lastObservedPositionSeconds = Timestamped.old(0L);
 	/**
 	 * Specifically goToPlay has finished playing.
 	 */
@@ -129,11 +136,11 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			}
 			else if (obj instanceof Long) {
 				this.goalSeekToSeconds = (Long) obj;
-				this.lastObservedPositionSeconds = (Long) obj;
+				this.lastObservedPositionSeconds = Timestamped.of((Long) obj);
 			}
 			else if (obj instanceof DlnaToPlay) {
 				this.goalToPlay = (DlnaToPlay) obj;
-				this.lastObservedPositionSeconds = 0;
+				this.lastObservedPositionSeconds = Timestamped.old(0L);
 			}
 			else if (obj instanceof TransportState) {
 				final TransportState transportState = (TransportState) obj;
@@ -162,7 +169,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		// Capture state.
 		final DlnaToPlay goToPlay = this.goalToPlay;
 		final PlayState goState = this.goalState;
-		final long lopSeconds = this.lastObservedPositionSeconds;
+		final Timestamped<Long> lopSeconds = this.lastObservedPositionSeconds;
 
 		// If no goal state, do not do anything.
 		if (goToPlay == null) return PlayState.STOPPED;
@@ -184,7 +191,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 
 		// Has the track finished playing?
-		final boolean lopAtEnd = lopSeconds >= goToPlay.getDurationSeconds() - LOP_WITHIN_END_TO_RECORD_END_SECONDS;
+		final boolean lopAtEnd = lopSeconds.get() >= goToPlay.getDurationSeconds() - LOP_WITHIN_END_TO_RECORD_END_SECONDS;
 		final boolean trackNotPlaying = renUri == null || renState == TransportState.STOPPED || renState == TransportState.NO_MEDIA_PRESENT;
 		final boolean rendererStoppedPlaying = this.unprocessedPlaybackOfGoalStoppedEvent || (trackNotPlaying && lopAtEnd);
 		this.unprocessedPlaybackOfGoalStoppedEvent = false;
@@ -204,7 +211,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 				// Clear goal state.
 				this.goalToPlay = null;
 				this.goalSeekToSeconds = null;
-				this.lastObservedPositionSeconds = 0;
+				this.lastObservedPositionSeconds = Timestamped.old(0L); // Old skips WAIT_FOR_STOP_EVENT_TIMEOUT_SECONDS delay.
 
 				return PlayState.STOPPED; // Made a change, so return.
 			}
@@ -247,6 +254,9 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		if (!Objs.equals(renUri, goToPlay.getUri())) {
 			if (goState == PlayState.PAUSED) return PlayState.PAUSED; // We would load, but will wait until not paused before doing so.
 
+			// If age of last observed position is too young, wait a bit in case end event turns up.
+			if (lopSeconds.age(TimeUnit.SECONDS) < WAIT_FOR_STOP_EVENT_TIMEOUT_SECONDS) return PlayState.LOADING;
+
 			if (renUri != null) {
 				LOG.info("Stopping: {}", renUri);
 				try {
@@ -267,7 +277,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					goToPlay.getItem().getTrack().getDuration());
 			this.avTransport.play();
 			LOG.info("Loaded {}.", goToPlay.getId());
-			scheduleRestorePosition(lopSeconds);
+			scheduleRestorePosition(lopSeconds.get());
 			return PlayState.LOADING; // Made a change, so return.
 		}
 
@@ -302,7 +312,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					case NO_MEDIA_PRESENT:
 						this.avTransport.play();
 						LOG.info("Started playback.");
-						scheduleRestorePosition(lopSeconds);
+						scheduleRestorePosition(lopSeconds.get());
 						return PlayState.PLAYING; // Made a change, so return.
 
 					case PAUSED_PLAYBACK:
@@ -329,8 +339,8 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 
 		// Stash current play back progress if greater than progress so far.
-		if (renElapsedSeconds > this.lastObservedPositionSeconds) {
-			this.lastObservedPositionSeconds = renElapsedSeconds;
+		if (renElapsedSeconds > lopSeconds.get()) {
+			this.lastObservedPositionSeconds = Timestamped.of(renElapsedSeconds);
 		}
 
 		// Notify event listeners.
