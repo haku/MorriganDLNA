@@ -65,13 +65,32 @@ public class AvSubscriber extends SubscriptionCallback {
 		try {
 			final Object rawLastChange = sub.getCurrentValues().get("LastChange");
 			if (rawLastChange != null) {
-				final LastChange lastChange = new LastChange(new AVTransportLastChangeParser(), rawLastChange.toString());
+				final String fixedLastChange = fixLastChange(rawLastChange.toString());
+				final LastChange lastChange;
+				try {
+					lastChange = new LastChange(
+							new AVTransportLastChangeParser(),
+							fixedLastChange);
+				}
+				catch (final Exception e) {
+					LOG.warn("{} Failed to parse '{}': {}",
+							this.dlnaPlayer.getId(),
+							fixedLastChange,
+							ErrorHelper.oneLineCauseTrace(e));
+					return;
+				}
 				lastChangeReceived(lastChange);
 			}
 		}
 		catch (final Exception e) {
 			LOG.warn("{} Failed to handle event: {}", this.dlnaPlayer.getId(), ErrorHelper.oneLineCauseTrace(e));
 		}
+	}
+
+	private String fixLastChange (final String raw) {
+		return raw.replace(
+				"xmlns=\"urn:schemas-upnp-org:metadata-1-0/AVT_RCS\"",
+				"xmlns=\"urn:schemas-upnp-org:metadata-1-0/AVT/\""); // AVTransportLastChangeParser.NAMESPACE_URI
 	}
 
 	private void lastChangeReceived (final LastChange lastChange) {
