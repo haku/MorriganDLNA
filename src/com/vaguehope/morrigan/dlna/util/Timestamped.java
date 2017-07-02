@@ -33,7 +33,7 @@ public class Timestamped<T> {
 
 	@Override
 	public String toString () {
-		return String.format("Timestamped{%s @%s}", this.v, age(TimeUnit.SECONDS));
+		return String.format("Timestamped{%s @%ss}", this.v, age(TimeUnit.SECONDS));
 	}
 
 }
