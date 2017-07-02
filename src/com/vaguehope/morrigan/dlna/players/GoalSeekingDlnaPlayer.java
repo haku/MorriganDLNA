@@ -129,6 +129,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			}
 			else if (obj instanceof Long) {
 				this.goalSeekToSeconds = (Long) obj;
+				this.lastObservedPositionSeconds = (Long) obj;
 			}
 			else if (obj instanceof DlnaToPlay) {
 				this.goalToPlay = (DlnaToPlay) obj;
@@ -151,6 +152,9 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 	}
 
+	private volatile TransportState prevRenState = null;
+	private volatile String prevRenUri = null;
+
 	/**
 	 * Returns the state that should be shown externally in UIs, etc.
 	 */
@@ -172,6 +176,12 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		// Get things ready to compare.
 		final TransportState renState = renTi.getCurrentTransportState();
 		final String renUri = renMi != null ? renMi.getCurrentURI() : null;
+
+		if (renState != this.prevRenState || !Objs.equals(renUri, this.prevRenUri)) {
+			LOG.info("Ren: s={} u={}", renState, renUri);
+			this.prevRenState = renState;
+			this.prevRenUri = renUri;
+		}
 
 		// Has the track finished playing?
 		final boolean lopAtEnd = lopSeconds >= goToPlay.getDurationSeconds() - LOP_WITHIN_END_TO_RECORD_END_SECONDS;
@@ -237,12 +247,14 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		if (!Objs.equals(renUri, goToPlay.getUri())) {
 			if (goState == PlayState.PAUSED) return PlayState.PAUSED; // We would load, but will wait until not paused before doing so.
 
-			LOG.info("Stopping: {}", renUri);
-			try {
-				this.avTransport.stop();
-			}
-			catch (final DlnaResponseException e) { // Specifically not a timeout.
-				LOG.info("Stop before play failed: {}", ErrorHelper.oneLineCauseTrace(e));
+			if (renUri != null) {
+				LOG.info("Stopping: {}", renUri);
+				try {
+					this.avTransport.stop();
+				}
+				catch (final DlnaResponseException e) { // Specifically not a timeout.
+					LOG.info("Stop before play failed: {}", ErrorHelper.oneLineCauseTrace(e));
+				}
 			}
 
 			LOG.info("Loading: {}", goToPlay);
@@ -316,8 +328,10 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			renDurationSeconds = renPi.getTrackDurationSeconds();
 		}
 
-		// Stash current play back progress.
-		if (renElapsedSeconds > 0) this.lastObservedPositionSeconds = renElapsedSeconds;
+		// Stash current play back progress if greater than progress so far.
+		if (renElapsedSeconds > this.lastObservedPositionSeconds) {
+			this.lastObservedPositionSeconds = renElapsedSeconds;
+		}
 
 		// Notify event listeners.
 		getListeners().positionChanged(renElapsedSeconds, (int) renDurationSeconds);
@@ -346,9 +360,6 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		if (lopSeconds > MIN_POSITION_TO_RESTORE_SECONDS) {
 			this.eventQueue.add(Long.valueOf(lopSeconds));
 			LOG.info("Scheduled restore position: {}s", lopSeconds);
-		}
-		else {
-			this.lastObservedPositionSeconds = 0; // In case something left over.
 		}
 	}
 
