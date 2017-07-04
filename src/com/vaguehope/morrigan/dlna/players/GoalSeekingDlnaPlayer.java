@@ -283,7 +283,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					goToPlay.getItem().getTrack().getTitle(),
 					goToPlay.getMimeType(), goToPlay.getFileSize(),
 					goToPlay.getCoverArtUri(),
-					goToPlay.getItem().getTrack().getDuration());
+					goToPlay.getDurationSeconds());
 			this.avTransport.play();
 			LOG.info("Loaded {}.", goToPlay.getId());
 			scheduleRestorePosition(lopSeconds.get());
@@ -433,11 +433,11 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	}
 
 	@Override
-	protected void dlnaPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final String coverArtUri) throws DlnaException {
+	protected void dlnaPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final int durationSeconds, final String coverArtUri) throws DlnaException {
 		setCurrentItem(item);
 		saveState();
 
-		this.eventQueue.add(new DlnaToPlay(item, id, uri, mimeType, fileSize, coverArtUri, this));
+		this.eventQueue.add(new DlnaToPlay(item, id, uri, mimeType, fileSize, durationSeconds, coverArtUri, this));
 		this.eventQueue.add(PlayState.PLAYING);
 		setCurrentState(PlayState.LOADING);
 

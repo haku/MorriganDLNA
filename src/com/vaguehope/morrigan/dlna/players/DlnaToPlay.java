@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.seamless.util.MimeType;
 
 import com.vaguehope.morrigan.dlna.util.StringHelper;
-import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.player.PlayItem;
 
 class DlnaToPlay {
@@ -22,11 +21,12 @@ class DlnaToPlay {
 	private final Runnable onStartOfTrack;
 	private final Runnable onEndOfTrack;
 
-	public DlnaToPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final String coverArtUri, final AbstractDlnaPlayer dlnaPlayer) {
+	public DlnaToPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final int durationSeconds, final String coverArtUri, final AbstractDlnaPlayer dlnaPlayer) {
 		if (item == null) throw new IllegalArgumentException();
 		if (StringHelper.blank(id)) throw new IllegalArgumentException();
 		if (StringHelper.blank(uri)) throw new IllegalArgumentException();
 		if (mimeType == null) throw new IllegalArgumentException();
+		if (durationSeconds < 1) throw new IllegalArgumentException("Can not play tracks without a known duration.");
 		if (dlnaPlayer == null) throw new IllegalArgumentException();
 
 		this.item = item;
@@ -34,12 +34,8 @@ class DlnaToPlay {
 		this.uri = uri;
 		this.mimeType = mimeType;
 		this.fileSize = fileSize;
+		this.durationSeconds = durationSeconds;
 		this.coverArtUri = coverArtUri;
-
-		final IMediaTrack track = item.getTrack();
-		if (track == null) throw new IllegalArgumentException("Item does not have a track.");
-		this.durationSeconds = track.getDuration();
-		if (this.durationSeconds < 1) throw new IllegalArgumentException("Can not play tracks without a known duration.");
 
 		this.onStartOfTrack = new OnTrackStarted(dlnaPlayer, item);
 		this.onEndOfTrack = new OnTrackComplete(dlnaPlayer, item);

@@ -1,10 +1,12 @@
 package com.vaguehope.morrigan.dlna.players;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.fourthline.cling.controlpoint.ControlPoint;
@@ -28,6 +30,7 @@ import com.vaguehope.morrigan.player.AbstractPlayer;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayerRegister;
+import com.vaguehope.morrigan.transcode.Ffprobe;
 
 public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
@@ -135,7 +138,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 	}
 
 	@Override
-	protected void loadAndPlay (final PlayItem item, final File altFile) throws DlnaException {
+	protected void loadAndPlay (final PlayItem item, final File altFile) throws DlnaException, IOException {
 		final String id;
 		if (altFile != null) {
 			id = this.mediaFileLocator.fileId(altFile);
@@ -150,23 +153,30 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		final String uri;
 		final MimeType mimeType;
 		final long fileSize;
+		final int durationSeconds;
 		if (altFile != null) {
 			uri = this.mediaServer.uriForId(id);
 			mimeType = MediaFormat.identify(altFile).toMimeType();
 			fileSize = altFile.length();
-			// FIXME what about altDuration?
+			durationSeconds = readFileDurationSeconds(altFile);
 		}
 		else if (StringHelper.notBlank(item.getTrack().getRemoteLocation())) {
 			uri = item.getTrack().getRemoteLocation();
 			mimeType = MimeType.valueOf(item.getTrack().getMimeType());
 			fileSize = item.getTrack().getFileSize();
+			durationSeconds = item.getTrack().getDuration(); // TODO what if this is not available?
 		}
 		else {
 			uri = this.mediaServer.uriForId(id);
 			final File file = new File(item.getTrack().getFilepath());
 			mimeType = MediaFormat.identify(file).toMimeType();
 			fileSize = file.length();
+			int d = item.getTrack().getDuration();
+			if (d < 1) d = readFileDurationSeconds(file);
+			durationSeconds = d;
 		}
+
+		if (durationSeconds < 1) throw new DlnaException("Can not play track without a known duration.");
 
 		final String coverArtUri;
 		if (StringHelper.notBlank(item.getTrack().getCoverArtRemoteLocation())) {
@@ -177,10 +187,21 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 			coverArtUri = coverArt != null ? this.mediaServer.uriForId(this.mediaFileLocator.fileId(coverArt)) : null;
 		}
 
-		dlnaPlay(item, id, uri, mimeType, fileSize, coverArtUri);
+		dlnaPlay(item, id, uri, mimeType, fileSize, durationSeconds, coverArtUri);
 	}
 
-	protected abstract void dlnaPlay (PlayItem item, String id, String uri, MimeType mimeType, long fileSize, String coverArtUri) throws DlnaException;
+	/**
+	 * Returns valid duration or throws.
+	 */
+	private static int readFileDurationSeconds (final File altFile) throws IOException {
+		final Long fileDurationMillis = Ffprobe.inspect(altFile).getDurationMillis();
+		if (fileDurationMillis == null || fileDurationMillis < 1) throw new IOException("Failed to read file duration: " + altFile.getAbsolutePath());
+		LOG.info("Duration {}ms: {}", fileDurationMillis, altFile.getAbsolutePath());
+		int seconds = (int) TimeUnit.MILLISECONDS.toSeconds(fileDurationMillis);
+		return seconds < 1 ? 1 : seconds; // 0ms < d < 1s gets rounded up to 1s.
+	}
+
+	protected abstract void dlnaPlay (PlayItem item, String id, String uri, MimeType mimeType, long fileSize, int durationSeconds, String coverArtUri) throws DlnaException;
 
 	protected abstract boolean shouldBePlaying ();
 

@@ -42,7 +42,7 @@ public class DlnaPlayer extends AbstractDlnaPlayer {
 	}
 
 	@Override
-	protected void dlnaPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final String coverArtUri) throws DlnaException {
+	protected void dlnaPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final int durationSeconds, final String coverArtUri) throws DlnaException {
 		LOG.info("loading: {}", id);
 		stopPlaying();
 
@@ -50,7 +50,7 @@ public class DlnaPlayer extends AbstractDlnaPlayer {
 		this.currentUri.set(uri);
 		setCurrentItem(item);
 
-		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), mimeType, fileSize, coverArtUri, item.getTrack().getDuration());
+		this.avTransport.setUri(id, uri, item.getTrack().getTitle(), mimeType, fileSize, coverArtUri, durationSeconds);
 		this.avTransport.play();
 
 		startWatcher(uri, item);
