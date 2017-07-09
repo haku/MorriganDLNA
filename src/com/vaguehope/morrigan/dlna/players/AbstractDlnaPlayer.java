@@ -28,7 +28,6 @@ import com.vaguehope.morrigan.model.media.IMediaTrack;
 import com.vaguehope.morrigan.model.media.IMediaTrackList;
 import com.vaguehope.morrigan.player.AbstractPlayer;
 import com.vaguehope.morrigan.player.PlayItem;
-import com.vaguehope.morrigan.player.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.transcode.Ffprobe;
 
@@ -117,12 +116,6 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 	@Override
 	public int getCurrentTrackDurationFromRenderer () {
 		return this.playerEventCache.getDuration();
-	}
-
-	@Override
-	public void setPlaybackOrder (final PlaybackOrder order) {
-		super.setPlaybackOrder(order);
-		saveState();
 	}
 
 	@Override
