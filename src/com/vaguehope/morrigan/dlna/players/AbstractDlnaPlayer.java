@@ -199,12 +199,13 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 	protected abstract boolean shouldBePlaying ();
 
 	public PlayerState backupState () {
-		return new PlayerState(getPlaybackOrder(), getCurrentItem(), getCurrentPosition(), shouldBePlaying(), getQueue());
+		return new PlayerState(getPlaybackOrder(), getTranscode(), getCurrentItem(), getCurrentPosition(), shouldBePlaying(), getQueue());
 	}
 
 	void restoreBackedUpState (final PlayerState state) {
 		if (state == null) return;
 		setPlaybackOrder(state.getPlaybackOrder());
+		setTranscode(state.getTranscode());
 		setCurrentItem(state.getCurrentItem());
 		this.restorePositionState = state;
 		state.addItemsToQueue(getQueue());

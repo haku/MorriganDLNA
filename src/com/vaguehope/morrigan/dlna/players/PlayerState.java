@@ -6,10 +6,12 @@ import java.util.List;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlaybackOrder;
 import com.vaguehope.morrigan.player.PlayerQueue;
+import com.vaguehope.morrigan.transcode.Transcode;
 
 public class PlayerState {
 
 	private final PlaybackOrder playbackOrder;
+	private final Transcode transcode;
 	private final PlayItem currentItem;
 	private final long position;
 	private final boolean isPlaying;
@@ -17,11 +19,13 @@ public class PlayerState {
 
 	public PlayerState (
 			final PlaybackOrder playbackOrder,
+			final Transcode transcode,
 			final PlayItem currentItem,
 			final long position,
 			final boolean isPlaying,
 			final PlayerQueue queue) {
 		this.playbackOrder = playbackOrder;
+		this.transcode = transcode;
 		this.currentItem = currentItem;
 		this.position = position;
 		this.isPlaying = isPlaying;
@@ -30,6 +34,10 @@ public class PlayerState {
 
 	public PlaybackOrder getPlaybackOrder () {
 		return this.playbackOrder;
+	}
+
+	public Transcode getTranscode () {
+		return this.transcode;
 	}
 
 	public PlayItem getCurrentItem () {
