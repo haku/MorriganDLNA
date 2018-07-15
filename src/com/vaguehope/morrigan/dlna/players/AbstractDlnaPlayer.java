@@ -226,19 +226,6 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		this.restorePositionState = null;
 	}
 
-	protected PlayItem findNextItemToPlay () {
-		final PlayItem queueItem = this.getQueue().takeFromQueue();
-		if (queueItem != null) return queueItem;
-
-		final PlayItem lastItem = getCurrentItem();
-		if (lastItem == null || !lastItem.hasList()) return null;
-
-		final IMediaTrack nextTrack = getOrderResolver().getNextTrack(lastItem.getList(), lastItem.getTrack(), getPlaybackOrder());
-		if (nextTrack != null) return new PlayItem(lastItem.getList(), nextTrack);
-
-		return null;
-	}
-
 	protected void recordTrackStarted (final PlayItem item) {
 		this.scheduledExecutor.execute(new RecordTrackStarted(item));
 	}
