@@ -48,6 +48,7 @@ public class PlayerEventCache implements PlayerEventListener {
 
 	@Override
 	public void onException (final Exception e) {
+		// TODO propagate to the UI!
 		LOG.warn("Unhandled excpetion.", e);
 	}
 
