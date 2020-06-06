@@ -25,6 +25,7 @@ import com.vaguehope.morrigan.model.media.IMixedMediaItem;
 import com.vaguehope.morrigan.model.media.IMixedMediaItem.MediaType;
 import com.vaguehope.morrigan.model.media.IMixedMediaItemStorageLayer;
 import com.vaguehope.morrigan.model.media.IMixedMediaStorageLayer;
+import com.vaguehope.morrigan.model.media.ItemTags;
 import com.vaguehope.morrigan.model.media.MediaAlbum;
 import com.vaguehope.morrigan.model.media.MediaItemListChangeListener;
 import com.vaguehope.morrigan.model.media.MediaTag;
@@ -215,6 +216,11 @@ public abstract class EphemeralMixedMediaDb implements IMixedMediaDb {
 	@Override
 	public List<MediaTag> getTagsIncludingDeleted (final IDbItem item) throws MorriganException {
 		return Collections.emptyList();
+	}
+
+	@Override
+	public ItemTags readTags (final IDbItem item) throws MorriganException {
+		return ItemTags.EMPTY;
 	}
 
 	@Override
