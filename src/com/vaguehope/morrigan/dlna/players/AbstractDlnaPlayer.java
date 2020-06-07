@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.fourthline.cling.controlpoint.ControlPoint;
@@ -30,6 +31,7 @@ import com.vaguehope.morrigan.player.AbstractPlayer;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
 import com.vaguehope.morrigan.transcode.FfprobeCache;
+import com.vaguehope.morrigan.util.Objs;
 
 public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
@@ -45,6 +47,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 	protected final PlayerEventCache playerEventCache = new PlayerEventCache();
 
 	private final AtomicReference<PlayItem> currentItem = new AtomicReference<PlayItem>();
+	private final AtomicInteger currentItemDurationSeconds = new AtomicInteger(-1);
 
 	private volatile PlayerState restorePositionState;
 
@@ -100,7 +103,10 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
 	@Override
 	public void setCurrentItem (final PlayItem item) {
-		this.currentItem.set(item);
+		PlayItem old = this.currentItem.getAndSet(item);
+		if (!Objs.equals(old, item)) {
+			this.currentItemDurationSeconds.set(-1);
+		}
 	}
 
 	@Override
@@ -111,6 +117,11 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 	@Override
 	public long getCurrentPosition () {
 		return this.playerEventCache.getPosition();
+	}
+
+	@Override
+	public int getCurrentTrackDurationAsMeasured () {
+		return this.currentItemDurationSeconds.get();
 	}
 
 	@Override
@@ -146,7 +157,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		final String uri;
 		final MimeType mimeType;
 		final long fileSize;
-		final int durationSeconds;  // TODO move this up into AbstractPlayer?
+		final int durationSeconds;
 		if (altFile != null) {
 			uri = this.mediaServer.uriForId(id);
 			mimeType = MediaFormat.identify(altFile).toMimeType();
@@ -170,6 +181,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		}
 
 		if (durationSeconds < 1) throw new DlnaException("Can not play track without a known duration.");
+		this.currentItemDurationSeconds.set(durationSeconds);
 
 		final String coverArtUri;
 		if (StringHelper.notBlank(item.getTrack().getCoverArtRemoteLocation())) {
