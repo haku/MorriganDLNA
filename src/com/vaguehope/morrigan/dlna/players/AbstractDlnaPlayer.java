@@ -29,7 +29,7 @@ import com.vaguehope.morrigan.model.media.IMediaTrackList;
 import com.vaguehope.morrigan.player.AbstractPlayer;
 import com.vaguehope.morrigan.player.PlayItem;
 import com.vaguehope.morrigan.player.PlayerRegister;
-import com.vaguehope.morrigan.transcode.Ffprobe;
+import com.vaguehope.morrigan.transcode.FfprobeCache;
 
 public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
@@ -146,7 +146,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		final String uri;
 		final MimeType mimeType;
 		final long fileSize;
-		final int durationSeconds;
+		final int durationSeconds;  // TODO move this up into AbstractPlayer?
 		if (altFile != null) {
 			uri = this.mediaServer.uriForId(id);
 			mimeType = MediaFormat.identify(altFile).toMimeType();
@@ -187,7 +187,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 	 * Returns valid duration or throws.
 	 */
 	private static int readFileDurationSeconds (final File altFile) throws IOException {
-		final Long fileDurationMillis = Ffprobe.inspect(altFile).getDurationMillis();
+		final Long fileDurationMillis = FfprobeCache.inspect(altFile).getDurationMillis();
 		if (fileDurationMillis == null || fileDurationMillis < 1) throw new IOException("Failed to read file duration: " + altFile.getAbsolutePath());
 		LOG.info("Duration {}ms: {}", fileDurationMillis, altFile.getAbsolutePath());
 		int seconds = (int) TimeUnit.MILLISECONDS.toSeconds(fileDurationMillis);
