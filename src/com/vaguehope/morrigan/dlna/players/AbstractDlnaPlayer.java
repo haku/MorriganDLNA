@@ -103,7 +103,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
 	@Override
 	public void setCurrentItem (final PlayItem item) {
-		PlayItem old = this.currentItem.getAndSet(item);
+		final PlayItem old = this.currentItem.getAndSet(item);
 		if (!Objs.equals(old, item)) {
 			this.currentItemDurationSeconds.set(-1);
 		}
@@ -181,7 +181,6 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		}
 
 		if (durationSeconds < 1) throw new DlnaException("Can not play track without a known duration.");
-		this.currentItemDurationSeconds.set(durationSeconds);
 
 		final String coverArtUri;
 		if (StringHelper.notBlank(item.getTrack().getCoverArtRemoteLocation())) {
@@ -193,6 +192,9 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		}
 
 		dlnaPlay(item, id, uri, mimeType, fileSize, durationSeconds, coverArtUri);
+
+		// After dlnaPlay() because it will (likely) call setCurrentItem().
+		this.currentItemDurationSeconds.set(durationSeconds);
 	}
 
 	/**
@@ -202,7 +204,7 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 		final Long fileDurationMillis = FfprobeCache.inspect(altFile).getDurationMillis();
 		if (fileDurationMillis == null || fileDurationMillis < 1) throw new IOException("Failed to read file duration: " + altFile.getAbsolutePath());
 		LOG.info("Duration {}ms: {}", fileDurationMillis, altFile.getAbsolutePath());
-		int seconds = (int) TimeUnit.MILLISECONDS.toSeconds(fileDurationMillis);
+		final int seconds = (int) TimeUnit.MILLISECONDS.toSeconds(fileDurationMillis);
 		return seconds < 1 ? 1 : seconds; // 0ms < d < 1s gets rounded up to 1s.
 	}
 
