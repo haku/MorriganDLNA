@@ -75,10 +75,10 @@ public class ContentDirectoryHolder {
 		db.dispose();
 	}
 
-	private static final String METADATA_DB_DIR = "/dlnametadata";
+	private static final String METADATA_DB_DIR = "dlnametadata";
 
 	public static File getMetadataDbPath (final String id) {
-		final File d = new File(Config.getConfigDir() + METADATA_DB_DIR);
+		final File d = new File(Config.getConfigDir(), METADATA_DB_DIR);
 		if (!d.exists() && !d.mkdirs() && !d.exists()) throw new IllegalStateException("Failed to create direactory '" + d.getAbsolutePath() + "'.");
 		return new File(d, id);
 	}

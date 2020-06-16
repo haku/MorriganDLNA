@@ -19,7 +19,7 @@ public enum UserPrefs {
 	private static final String PREF_FILE_NAME = "dlna.properties";
 
 	private final Properties properties = new Properties();
-	private final File prefsFile = new File(new File(Config.getConfigDir()), PREF_FILE_NAME);
+	private final File prefsFile = new File(Config.getConfigDir(), PREF_FILE_NAME);
 	private final Object[] lock = new Object[] {};
 	private boolean cached = false;
 
