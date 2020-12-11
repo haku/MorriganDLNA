@@ -96,7 +96,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			readEventQueue();
 
 			final PlayState cState = readStateAndSeekGoal();
-			setCurrentState(cState);
+			setStateToReportExternally(cState);
 
 			markLastSuccess();
 		}
@@ -112,7 +112,10 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 	}
 
-	private volatile PlayState currentState = null;
+	/**
+	 * Different from goalState because LOADING is not a valid goal and there may be intermediate steps.
+	 */
+	private volatile PlayState stateToReportExternally = null;
 	private final BlockingQueue<Object> eventQueue = new LinkedBlockingQueue<Object>();
 	/*
 	 * These fields must only be written from the event thread.
@@ -136,6 +139,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 				final PlayState newState = (PlayState) obj;
 				if (newState == PlayState.LOADING) throw new IllegalStateException("Loading is not a valid target state.");
 				this.goalState = newState;
+				setStateToReportExternally(newState);
 			}
 			else if (obj instanceof Long) {
 				this.goalSeekToSeconds = (Long) obj;
@@ -382,14 +386,20 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 	}
 
-	private void setCurrentState (final PlayState state) {
-		this.currentState = state;
-		getListeners().playStateChanged(this.currentState);
+	private void schedulePlayStateChange (final PlayState ps) {
+		if (this.eventQueue.add(ps)) {
+			setStateToReportExternally(ps);
+		}
+	}
+
+	private void setStateToReportExternally (final PlayState state) {
+		this.stateToReportExternally = state;
+		getListeners().playStateChanged(this.stateToReportExternally);
 	}
 
 	@Override
 	public PlayState getEnginePlayState () {
-		final PlayState ps = this.currentState;
+		final PlayState ps = this.stateToReportExternally;
 		if (ps != null) return ps;
 		return PlayState.STOPPED;
 	}
@@ -404,10 +414,10 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	public void pausePlaying () {
 		final PlayState playState = getPlayState();
 		if (playState == PlayState.PAUSED) {
-			this.eventQueue.add(PlayState.PLAYING);
+			schedulePlayStateChange(PlayState.PLAYING);
 		}
 		else if (playState == PlayState.PLAYING || playState == PlayState.LOADING) {
-			this.eventQueue.add(PlayState.PAUSED);
+			schedulePlayStateChange(PlayState.PAUSED);
 		}
 		else if (playState == PlayState.STOPPED) {
 			final PlayItem ci = getCurrentItem();
@@ -420,7 +430,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 	@Override
 	public void stopPlaying () {
-		this.eventQueue.add(PlayState.STOPPED);
+		schedulePlayStateChange(PlayState.STOPPED);
 	}
 
 	@Override
@@ -439,7 +449,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 		this.eventQueue.add(new DlnaToPlay(item, id, uri, mimeType, fileSize, durationSeconds, coverArtUri, this));
 		this.eventQueue.add(PlayState.PLAYING);
-		setCurrentState(PlayState.LOADING);
+		setStateToReportExternally(PlayState.LOADING);
 
 		// Only restore position if for same item.
 		final PlayerState rps = getRestorePositionState();
