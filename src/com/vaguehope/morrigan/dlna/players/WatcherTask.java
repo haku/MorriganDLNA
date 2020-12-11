@@ -29,7 +29,7 @@ final class WatcherTask implements Runnable {
 			final String uriToWatch,
 			final AtomicReference<String> currentUri,
 			final int trackDurationSeconds,
-			final AvTransport avTransport,
+			final AvTransportActions avTransport,
 			final PlayerEventListener listener,
 			final Runnable onStartOfTrack, final Runnable onEndOfTrack
 			) {
@@ -42,7 +42,7 @@ final class WatcherTask implements Runnable {
 	private final String uriToWatch;
 	private final AtomicReference<String> currentUri;
 	private final int trackDurationSeconds;
-	private final AvTransport avTransport;
+	private final AvTransportActions avTransport;
 	private final PlayerEventListener listener;
 	private final Runnable onStartOfTrack;
 	private final Runnable onEndOfTrack;
@@ -58,7 +58,7 @@ final class WatcherTask implements Runnable {
 
 	private WatcherTask (final String uriToWatch, final AtomicReference<String> currentUri,
 			final int trackDurationSeconds,
-			final AvTransport avTransport,
+			final AvTransportActions avTransport,
 			final PlayerEventListener listener, final Runnable onStartOfTrack, final Runnable onEndOfTrack) {
 		this.uriToWatch = uriToWatch;
 		this.currentUri = currentUri;

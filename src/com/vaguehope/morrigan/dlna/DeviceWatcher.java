@@ -12,8 +12,6 @@ import com.vaguehope.morrigan.dlna.players.PlayerRegisterListener;
 
 public class DeviceWatcher extends DefaultRegistryListener {
 
-	private static final String SERVICE_AVTRANSPORT = "AVTransport";
-	private static final String SERVICE_CONTENTDIRECTORY = "ContentDirectory";
 	private static final Logger LOG = LoggerFactory.getLogger(DeviceWatcher.class);
 
 	private final PlayerRegisterListener playerRegisterListener;
@@ -26,7 +24,7 @@ public class DeviceWatcher extends DefaultRegistryListener {
 
 	@Override
 	public void remoteDeviceAdded (final Registry registry, final RemoteDevice device) {
-		final RemoteService avTransport = findFirstServiceOfType(device, SERVICE_AVTRANSPORT);
+		final RemoteService avTransport = UpnpHelper.findFirstServiceOfType(device, UpnpHelper.SERVICE_AVTRANSPORT);
 		if (avTransport != null) {
 			LOG.info("found: {} on {} (udn={})",
 					avTransport.getServiceId().getId(),
@@ -35,7 +33,7 @@ public class DeviceWatcher extends DefaultRegistryListener {
 			this.playerRegisterListener.addAvTransport(device, avTransport);
 		}
 
-		final RemoteService contentDirectory = findFirstServiceOfType(device, SERVICE_CONTENTDIRECTORY);
+		final RemoteService contentDirectory = UpnpHelper.findFirstServiceOfType(device, UpnpHelper.SERVICE_CONTENTDIRECTORY);
 		if (contentDirectory != null) {
 			LOG.info("found: {} on {} (udn={})",
 					contentDirectory.getServiceId().getId(),
@@ -52,13 +50,6 @@ public class DeviceWatcher extends DefaultRegistryListener {
 				device.getIdentity().getUdn());
 		this.playerRegisterListener.removeAvTransport(device);
 		this.contentDirectoryHolder.removeContentDirectory(device);
-	}
-
-	private static RemoteService findFirstServiceOfType (final RemoteDevice rd, final String service) {
-		for (final RemoteService rs : rd.getServices()) {
-			if (service.equals(rs.getServiceType().getType())) return rs;
-		}
-		return null;
 	}
 
 }

@@ -2,10 +2,7 @@ package com.vaguehope.morrigan.dlna.players;
 
 import java.net.URI;
 import java.util.Arrays;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.fourthline.cling.controlpoint.ControlPoint;
@@ -40,33 +37,28 @@ import org.slf4j.LoggerFactory;
 
 import com.vaguehope.morrigan.dlna.DlnaException;
 import com.vaguehope.morrigan.dlna.DlnaResponseException;
-import com.vaguehope.morrigan.dlna.DlnaTimeoutException;
 import com.vaguehope.morrigan.dlna.content.ContentGroup;
 import com.vaguehope.morrigan.util.ErrorHelper;
 
-public class AvTransport {
+public class AvTransportActions extends AbstractActions {
 
-	private static final int ACTION_TIMEOUT_SECONDS = 10;
-	private static final Logger LOG = LoggerFactory.getLogger(AvTransport.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AvTransportActions.class);
 
-	private final ControlPoint controlPoint;
-	private final RemoteService avTransport;
-
-	public AvTransport (final ControlPoint controlPoint, final RemoteService avTransportSvc) {
-		this.controlPoint = controlPoint;
-		this.avTransport = avTransportSvc;
+	public AvTransportActions (final ControlPoint controlPoint, final RemoteService avTransportSvc) {
+		super(controlPoint, avTransportSvc);
 	}
 
 	public void setUri (final String id, final String uri, final String title, final MimeType mimeType, final long fileSize, final String coverArtUri, final int durationSeconds) throws DlnaException {
 		final String metadata = metadataFor(id, uri, title, mimeType, fileSize, coverArtUri, durationSeconds);
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
-		final Future<?> f = this.controlPoint.execute(new SetAVTransportURI(this.avTransport, uri, metadata) {
+		// SetAVTransportURI() defaults to instanceId=0.
+		final Future<?> f = this.controlPoint.execute(new SetAVTransportURI(this.removeService, uri, metadata) {
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse response, final String defaultMsg) {
 				err.set(new Failure("set av transport URI", response, defaultMsg));
 			}
 		});
-		await(f, "set URI '%s' on transport '%s'.", uri, this.avTransport);
+		await(f, "set URI '%s' on transport '%s'.", uri, this.removeService);
 		if (err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
 	}
 
@@ -102,25 +94,25 @@ public class AvTransport {
 
 	public void play () throws DlnaException {
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
-		final Future<?> f = this.controlPoint.execute(new Play(this.avTransport) {
+		final Future<?> f = this.controlPoint.execute(new Play(this.removeService) {
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse response, final String defaultMsg) {
 				err.set(new Failure("play", response, defaultMsg));
 			}
 		});
-		await(f, "play on transport '%s'.", this.avTransport);
+		await(f, "play on transport '%s'.", this.removeService);
 		if (err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
 	}
 
 	public void pause () throws DlnaException {
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
-		final Future<?> f = this.controlPoint.execute(new Pause(this.avTransport) {
+		final Future<?> f = this.controlPoint.execute(new Pause(this.removeService) {
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse response, final String defaultMsg) {
 				err.set(new Failure("pause", response, defaultMsg));
 			}
 		});
-		await(f, "pause playback on transport '%s'.", this.avTransport);
+		await(f, "pause playback on transport '%s'.", this.removeService);
 		if (err.get() != null) {
 			String msg = err.get().msg();
 			try {
@@ -136,20 +128,20 @@ public class AvTransport {
 
 	public void stop () throws DlnaException {
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
-		final Future<?> f = this.controlPoint.execute(new Stop(this.avTransport) {
+		final Future<?> f = this.controlPoint.execute(new Stop(this.removeService) {
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse response, final String defaultMsg) {
 				err.set(new Failure("stop", response, defaultMsg));
 			}
 		});
-		await(f, "stop playback on transport '%s'.", this.avTransport);
+		await(f, "stop playback on transport '%s'.", this.removeService);
 		if (err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
 	}
 
 	public TransportInfo getTransportInfo () throws DlnaException {
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
 		final AtomicReference<TransportInfo> ref = new AtomicReference<TransportInfo>();
-		final Future<?> f = this.controlPoint.execute(new GetTransportInfo(this.avTransport) {
+		final Future<?> f = this.controlPoint.execute(new GetTransportInfo(this.removeService) {
 			@Override
 			public void received (final ActionInvocation invocation, final TransportInfo transportInfo) {
 				ref.set(transportInfo);
@@ -160,7 +152,7 @@ public class AvTransport {
 				err.set(new Failure("get transport info", response, defaultMsg));
 			}
 		});
-		await(f, "get playback state for transport '%s'.", this.avTransport);
+		await(f, "get playback state for transport '%s'.", this.removeService);
 		if (ref.get() == null || err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
 		return ref.get();
 	}
@@ -168,7 +160,7 @@ public class AvTransport {
 	public PositionInfo getPositionInfo () throws DlnaException {
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
 		final AtomicReference<PositionInfo> ref = new AtomicReference<PositionInfo>();
-		final Future<?> f = this.controlPoint.execute(new GetPositionInfo(this.avTransport) {
+		final Future<?> f = this.controlPoint.execute(new GetPositionInfo(this.removeService) {
 			@Override
 			public void received (final ActionInvocation invocation, final PositionInfo positionInfo) {
 				ref.set(positionInfo);
@@ -179,7 +171,7 @@ public class AvTransport {
 				err.set(new Failure("get position info", response, defaultMsg));
 			}
 		});
-		await(f, "get position info for transport '%s'.", this.avTransport);
+		await(f, "get position info for transport '%s'.", this.removeService);
 		if (ref.get() == null || err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
 		return ref.get();
 	}
@@ -187,7 +179,7 @@ public class AvTransport {
 	public MediaInfo getMediaInfo () throws DlnaException {
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
 		final AtomicReference<MediaInfo> ref = new AtomicReference<MediaInfo>();
-		final Future<?> f = this.controlPoint.execute(new GetMediaInfo(this.avTransport) {
+		final Future<?> f = this.controlPoint.execute(new GetMediaInfo(this.removeService) {
 			@Override
 			public void received (final ActionInvocation invocation, final MediaInfo mi) {
 				ref.set(mi);
@@ -198,7 +190,7 @@ public class AvTransport {
 				err.set(new Failure("get media info", response, defaultMsg));
 			}
 		});
-		await(f, "get media info for transport '%s'.", this.avTransport);
+		await(f, "get media info for transport '%s'.", this.removeService);
 		if (ref.get() == null || err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
 		return ref.get();
 	}
@@ -206,7 +198,7 @@ public class AvTransport {
 	public TransportAction[] getTransportActions () throws DlnaException {
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
 		final AtomicReference<TransportAction[]> ref = new AtomicReference<TransportAction[]>();
-		final Future<?> f = this.controlPoint.execute(new GetCurrentTransportActions(this.avTransport) {
+		final Future<?> f = this.controlPoint.execute(new GetCurrentTransportActions(this.removeService) {
 			@Override
 			public void received (final ActionInvocation invocation, final TransportAction[] actions) {
 				ref.set(actions);
@@ -217,7 +209,7 @@ public class AvTransport {
 				err.set(new Failure("get transport actions", response, defaultMsg));
 			}
 		});
-		await(f, "get actions for transport '%s'.", this.avTransport);
+		await(f, "get actions for transport '%s'.", this.removeService);
 		if (ref.get() == null || err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
 		return ref.get();
 	}
@@ -225,51 +217,14 @@ public class AvTransport {
 	public void seek (final long seconds) throws DlnaException {
 		final String time = ModelUtil.toTimeString(seconds);
 		final AtomicReference<Failure> err = new AtomicReference<Failure>();
-		final Future<?> f = this.controlPoint.execute(new Seek(this.avTransport, time) {
+		final Future<?> f = this.controlPoint.execute(new Seek(this.removeService, time) {
 			@Override
 			public void failure (final ActionInvocation invocation, final UpnpResponse response, final String defaultMsg) {
 				err.set(new Failure("seek to " + time, response, defaultMsg));
 			}
 		});
-		await(f, "seek to %s on transport '%s'.", time, this.avTransport);
+		await(f, "seek to %s on transport '%s'.", time, this.removeService);
 		if (err.get() != null) throw new DlnaResponseException(err.get().msg(), err.get().getResponse());
-	}
-
-	private static void await (final Future<?> f, final String msgFormat, final Object... msgArgs) throws DlnaException {
-		try {
-			f.get(ACTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-		}
-		catch (final ExecutionException e) {
-			throw new DlnaException("Failed to " + String.format(msgFormat, msgArgs), e);
-		}
-		catch (final TimeoutException e) {
-			throw new DlnaTimeoutException("Timed out after " + ACTION_TIMEOUT_SECONDS + "s while trying to " + String.format(msgFormat, msgArgs), e);
-		}
-		catch (final InterruptedException e) {
-			throw new DlnaException("Interupted while trying to " + String.format(msgFormat, msgArgs), e);
-		}
-	}
-
-	private static final class Failure {
-
-		private final String actionName;
-		private final UpnpResponse response;
-		private final String defaultMsg;
-
-		public Failure (final String actionName, final UpnpResponse response, final String defaultMsg) {
-			this.actionName = actionName;
-			this.response = response;
-			this.defaultMsg = defaultMsg;
-		}
-
-		public String msg () {
-			return String.format("Failed to %s | %s | %s.", this.actionName, this.defaultMsg, this.response);
-		}
-
-		public UpnpResponse getResponse () {
-			return this.response;
-		}
-
 	}
 
 }

@@ -37,7 +37,8 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractDlnaPlayer.class);
 
-	protected final AvTransport avTransport;
+	protected final AvTransportActions avTransport;
+	protected final RenderingControlActions renderingControl;
 	protected final ScheduledExecutorService scheduledExecutor;
 	private final MediaServer mediaServer;
 	private final MediaFileLocator mediaFileLocator;
@@ -58,7 +59,16 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 			final MediaFileLocator mediaFileLocator,
 			final ScheduledExecutorService scheduledExecutor) {
 		super(UpnpHelper.idFromRemoteService(avTransportSvc), avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
-		this.avTransport = new AvTransport(controlPoint, avTransportSvc);
+		this.avTransport = new AvTransportActions(controlPoint, avTransportSvc);
+
+		final RemoteService renderingControlSvc = UpnpHelper.findFirstServiceOfType(avTransportSvc.getDevice(), UpnpHelper.SERVICE_RENDERINGCONTROL);
+		if (renderingControlSvc != null) {
+			this.renderingControl = new RenderingControlActions(controlPoint, renderingControlSvc);
+		}
+		else {
+			this.renderingControl = null;
+		}
+
 		this.mediaServer = mediaServer;
 		this.mediaFileLocator = mediaFileLocator;
 		this.scheduledExecutor = scheduledExecutor;

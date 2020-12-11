@@ -3,9 +3,14 @@ package com.vaguehope.morrigan.dlna;
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
+import org.fourthline.cling.model.meta.RemoteDevice;
 import org.fourthline.cling.model.meta.RemoteService;
 
 public final class UpnpHelper {
+
+	public static final String SERVICE_AVTRANSPORT = "AVTransport";
+	public static final String SERVICE_CONTENTDIRECTORY = "ContentDirectory";
+	public static final String SERVICE_RENDERINGCONTROL = "RenderingControl";
 
 	private UpnpHelper () {}
 
@@ -28,5 +33,12 @@ public final class UpnpHelper {
 			return dateFormat;
 		}
 	};
+
+	public static RemoteService findFirstServiceOfType (final RemoteDevice rd, final String typeToFind) {
+		for (final RemoteService rs : rd.getServices()) {
+			if (typeToFind.equals(rs.getServiceType().getType())) return rs;
+		}
+		return null;
+	}
 
 }

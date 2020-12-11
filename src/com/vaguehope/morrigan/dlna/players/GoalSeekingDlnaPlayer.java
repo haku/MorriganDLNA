@@ -94,6 +94,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	private void runAndDoNotThrow () {
 		try {
 			readEventQueue();
+			setAndReadVolume();
 
 			final PlayState cState = readStateAndSeekGoal();
 			setStateToReportExternally(cState);
@@ -128,6 +129,8 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	 * Specifically goToPlay has finished playing.
 	 */
 	private volatile boolean unprocessedPlaybackOfGoalStoppedEvent = false;
+	private volatile Integer renderVolume = null;
+	private volatile Integer goalRenderVolume = null;
 
 	private void readEventQueue () {
 		final DlnaToPlay prevToPlay = this.goalToPlay;
@@ -140,6 +143,9 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 				if (newState == PlayState.LOADING) throw new IllegalStateException("Loading is not a valid target state.");
 				this.goalState = newState;
 				setStateToReportExternally(newState);
+			}
+			else if (obj instanceof Integer) {
+				this.goalRenderVolume = (Integer) obj;
 			}
 			else if (obj instanceof Long) {
 				this.goalSeekToSeconds = (Long) obj;
@@ -164,6 +170,16 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			LOG.info("Track finished playing event for: {}", this.goalToPlay.getId());
 			this.unprocessedPlaybackOfGoalStoppedEvent = true;
 		}
+	}
+
+	private void setAndReadVolume() throws DlnaException {
+		if (this.renderingControl != null) {
+			if (this.goalRenderVolume != null) {
+				this.renderingControl.setVolume(this.goalRenderVolume);
+			}
+			this.renderVolume = this.renderingControl.getVolume();
+		}
+		this.goalRenderVolume = null;
 	}
 
 	private volatile TransportState prevRenState = null;
@@ -402,6 +418,18 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		final PlayState ps = this.stateToReportExternally;
 		if (ps != null) return ps;
 		return PlayState.STOPPED;
+	}
+
+	@Override
+	public Integer getVoume () {
+		final Integer goal = this.goalRenderVolume;
+		if (goal != null) return goal;
+		return this.renderVolume;
+	}
+
+	@Override
+	public void setVolume (final int newVolume) {
+		this.eventQueue.add(Integer.valueOf(newVolume));
 	}
 
 	@Override
