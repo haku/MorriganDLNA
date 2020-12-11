@@ -428,8 +428,15 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	}
 
 	@Override
+	public Integer getVoumeMaxValue () {
+		if (this.renderingControl == null) return null;
+		return this.renderingControl.getVolumeMaxValue();
+	}
+
+	@Override
 	public void setVolume (final int newVolume) {
 		this.eventQueue.add(Integer.valueOf(newVolume));
+		this.renderVolume = newVolume;  // hacky but makes the ui more responsive.
 	}
 
 	@Override
