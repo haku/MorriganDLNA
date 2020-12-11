@@ -43,11 +43,11 @@ public final class ContentServlet extends DefaultServlet {
 			final long durationMillis = TimeUnit.NANOSECONDS.toMillis(now() - startTime);
 			final String ranges = join(req.getHeaders(HttpHeaders.RANGE), ",");
 			if (ranges != null) {
-				LOG.info("request: {} {} {}ms {} ({})",
+				LOG.info("Request: {} {} {}ms {} ({})",
 						resp.getStatus(), req.getRemoteAddr(), durationMillis, req.getRequestURI(), ranges);
 			}
 			else {
-				LOG.info("request: {} {} {}ms {}",
+				LOG.info("Request: {} {} {}ms {}",
 						resp.getStatus(), req.getRemoteAddr(), durationMillis, req.getRequestURI());
 			}
 		}

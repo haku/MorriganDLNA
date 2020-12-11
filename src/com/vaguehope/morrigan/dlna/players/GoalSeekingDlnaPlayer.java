@@ -192,7 +192,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		final String renUri = renMi != null ? renMi.getCurrentURI() : null;
 
 		if (renState != this.prevRenState || !Objs.equals(renUri, this.prevRenUri)) {
-			LOG.info("Ren: s={} u={}", renState, renUri);
+			LOG.info("Renderer: {} {}", renState, renUri);
 			this.prevRenState = renState;
 			this.prevRenUri = renUri;
 		}
@@ -289,7 +289,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					goToPlay.getCoverArtUri(),
 					goToPlay.getDurationSeconds());
 			this.avTransport.play();
-			LOG.info("Loaded {}.", goToPlay.getId());
+			LOG.debug("Loaded: {}.", goToPlay.getId());
 			scheduleRestorePosition(lopSeconds.get());
 			return PlayState.LOADING; // Made a change, so return.
 		}
