@@ -36,6 +36,7 @@ public final class NetHelper {
 		final String name = iface.getName().toLowerCase(Locale.ROOT);
 		if (name == null) return false;
 		if (name.startsWith("docker")) return false;
+		if (name.startsWith("br-")) return false;
 
 		return true;
 	}
