@@ -122,6 +122,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	 * These fields must only be written from the event thread.
 	 */
 	private volatile DlnaToPlay goalToPlay = null;
+	private volatile boolean rendererNeedsCleaning = false;
 	private volatile PlayState goalState = null;
 	private volatile Long goalSeekToSeconds = null;
 	private volatile Timestamped<Long> lastObservedPositionSeconds = Timestamped.old(0L);
@@ -154,6 +155,10 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			else if (obj instanceof DlnaToPlay) {
 				this.goalToPlay = (DlnaToPlay) obj;
 				this.lastObservedPositionSeconds = Timestamped.old(0L);
+				// User has requested a new track, but it might be the same as the old track.
+				// Which would really confuse things, so this flag is to send an explicit Stop
+				// to clean any old state from the renderer.
+				this.rendererNeedsCleaning = true;
 			}
 			else if (obj instanceof TransportState) {
 				final TransportState transportState = (TransportState) obj;
@@ -189,10 +194,17 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	 * Returns the state that should be shown externally in UIs, etc.
 	 */
 	private PlayState readStateAndSeekGoal () throws DlnaException {
+		// If a clean up is needed, everything else might be invalid.
+		if (this.rendererNeedsCleaning) {
+			LOG.debug("Sending cleanup Stop()...");
+			this.avTransport.stop();
+			this.rendererNeedsCleaning = false;
+		}
+
 		// Capture state.
 		final DlnaToPlay goToPlay = this.goalToPlay;
 		final PlayState goState = this.goalState;
-		final Timestamped<Long> lopSeconds = this.lastObservedPositionSeconds;
+		Timestamped<Long> lopSeconds = this.lastObservedPositionSeconds;
 
 		// If no goal state, do not do anything.
 		if (goToPlay == null) return PlayState.STOPPED;
@@ -202,6 +214,25 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		final MediaInfo renMi = this.avTransport.getMediaInfo();
 		final TransportInfo renTi = this.avTransport.getTransportInfo();
 		final PositionInfo renPi = this.avTransport.getPositionInfo();
+		LOG.debug("PositionInfo: {}", renPi);
+
+		// Check playback progress.  This needs to happen before checking state to ensure LOP is as up to date as possible.
+		final long renElapsedSeconds;
+		final long renDurationSeconds;
+		if (renPi == null) {
+			renElapsedSeconds = -1;
+			renDurationSeconds = -1;
+		}
+		else {
+			renElapsedSeconds = renPi.getTrackElapsedSeconds();
+			renDurationSeconds = renPi.getTrackDurationSeconds();
+		}
+
+		// Stash current play back progress if greater than progress so far.
+		if (renElapsedSeconds > lopSeconds.get()) {
+			lopSeconds = Timestamped.of(renElapsedSeconds);
+			this.lastObservedPositionSeconds = lopSeconds;
+		}
 
 		// Get things ready to compare.
 		final TransportState renState = renTi.getCurrentTransportState();
@@ -353,23 +384,6 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					default:
 				}
 			}
-		}
-
-		// Check playback progress.
-		final long renElapsedSeconds;
-		final long renDurationSeconds;
-		if (renPi == null) {
-			renElapsedSeconds = -1;
-			renDurationSeconds = -1;
-		}
-		else {
-			renElapsedSeconds = renPi.getTrackElapsedSeconds();
-			renDurationSeconds = renPi.getTrackDurationSeconds();
-		}
-
-		// Stash current play back progress if greater than progress so far.
-		if (renElapsedSeconds > lopSeconds.get()) {
-			this.lastObservedPositionSeconds = Timestamped.of(renElapsedSeconds);
 		}
 
 		// Notify event listeners.
