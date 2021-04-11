@@ -26,19 +26,21 @@ public class DeviceWatcher extends DefaultRegistryListener {
 	public void remoteDeviceAdded (final Registry registry, final RemoteDevice device) {
 		final RemoteService avTransport = UpnpHelper.findFirstServiceOfType(device, UpnpHelper.SERVICE_AVTRANSPORT);
 		if (avTransport != null) {
-			LOG.info("found: {} on {} (udn={})",
+			LOG.info("found: {} on {} (udn={}, maxAge={}s)",
 					avTransport.getServiceId().getId(),
 					device.getDetails().getFriendlyName(),
-					device.getIdentity().getUdn());
+					device.getIdentity().getUdn(),
+					device.getIdentity().getMaxAgeSeconds());
 			this.playerRegisterListener.addAvTransport(device, avTransport);
 		}
 
 		final RemoteService contentDirectory = UpnpHelper.findFirstServiceOfType(device, UpnpHelper.SERVICE_CONTENTDIRECTORY);
 		if (contentDirectory != null) {
-			LOG.info("found: {} on {} (udn={})",
+			LOG.info("found: {} on {} (udn={}, maxAge={}s)",
 					contentDirectory.getServiceId().getId(),
 					device.getDetails().getFriendlyName(),
-					device.getIdentity().getUdn());
+					device.getIdentity().getUdn(),
+					device.getIdentity().getMaxAgeSeconds());
 			this.contentDirectoryHolder.addContentDirectory(device, contentDirectory);
 		}
 	}

@@ -13,6 +13,10 @@ public class DlnaResponseException extends DlnaException {
 		this.upnpResponse = upnpResponse;
 	}
 
+	public boolean emptyResponse() {
+		return this.upnpResponse == null;
+	}
+
 	public boolean hasStatusCodeBetween(final int minInclusie, final int maxExclusive) {
 		if (this.upnpResponse == null) return false;
 

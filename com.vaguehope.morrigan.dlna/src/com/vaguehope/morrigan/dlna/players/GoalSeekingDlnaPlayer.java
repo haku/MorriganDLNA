@@ -5,6 +5,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.fourthline.cling.controlpoint.ControlPoint;
 import org.fourthline.cling.model.meta.RemoteService;
@@ -32,6 +34,8 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 	private static final int SLOW_RETRIES_AFTER_SECONDS = 60;
 	private static final int SLOW_RETRIE_DELAY_SECONDS = 10;
+
+	private static final int MAX_SEQUENTIAL_EMPTY_DLNA_RESPONSES = 10;
 
 	private static final int MIN_POSITION_TO_RECORD_STARTED_SECONDS = 5;
 	private static final int MIN_POSITION_TO_RESTORE_SECONDS = 10;
@@ -82,13 +86,27 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	};
 
 	private volatile long lastSuccessNanos = System.nanoTime();
+	private final AtomicInteger sequentialEmptyDlnaResponses = new AtomicInteger(0);
+	private final AtomicBoolean selfDestructTriggered = new AtomicBoolean(false);
 
 	private void markLastSuccess () {
 		this.lastSuccessNanos = System.nanoTime();
+		this.sequentialEmptyDlnaResponses.set(0);
 	}
 
 	private long secondsSinceLastSuccess () {
 		return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - this.lastSuccessNanos);
+	}
+
+	private void markEmptyDlnaResponse () {
+		final int n = this.sequentialEmptyDlnaResponses.incrementAndGet();
+		if (n >= MAX_SEQUENTIAL_EMPTY_DLNA_RESPONSES) {
+			if (this.selfDestructTriggered.compareAndSet(false, true)) {
+				LOG.warn("Self destructing, {} sequential empty DLNA responses.", n);
+				this.controlPoint.getRegistry().removeDevice(this.avTransportSvc.getDevice());
+				this.controlPoint.search();
+			}
+		}
 	}
 
 	private void runAndDoNotThrow () {
@@ -100,6 +118,10 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			setStateToReportExternally(cState);
 
 			markLastSuccess();
+		}
+		catch (final DlnaResponseException e) {
+			LOG.warn("DLNA call failed: {}", ErrorHelper.oneLineCauseTrace(e));
+			if (e.emptyResponse()) markEmptyDlnaResponse();
 		}
 		catch (final DlnaException e) {
 			LOG.warn("DLNA call failed: {}", ErrorHelper.oneLineCauseTrace(e));
