@@ -56,7 +56,8 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 	public GoalSeekingDlnaPlayer (
 			final PlayerRegister register,
-			final ControlPoint controlPoint, final RemoteService avTransportSvc,
+			final ControlPoint controlPoint,
+			final RemoteService avTransportSvc,
 			final MediaServer mediaServer,
 			final MediaFileLocator mediaFileLocator,
 			final ScheduledExecutorService scheduledExecutor) {
@@ -155,7 +156,8 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	private volatile Integer renderVolume = null;
 	private volatile Integer goalRenderVolume = null;
 
-	private void readEventQueue () {
+	// visible for testing.
+	public void readEventQueue () {
 		final DlnaToPlay prevToPlay = this.goalToPlay;
 		boolean stopEvent = false;
 
@@ -214,8 +216,9 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 	/**
 	 * Returns the state that should be shown externally in UIs, etc.
+	 * Visible for testing.
 	 */
-	private PlayState readStateAndSeekGoal () throws DlnaException {
+	public PlayState readStateAndSeekGoal () throws DlnaException {
 		// If a clean up is needed, everything else might be invalid.
 		if (this.rendererNeedsCleaning) {
 			LOG.debug("Sending cleanup Stop()...");
@@ -527,7 +530,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		if (rps != null && rps.getCurrentItem() != null && rps.getCurrentItem().hasTrack()) {
 			if (Objs.equals(item.getTrack(), rps.getCurrentItem().getTrack())) {
 				this.eventQueue.add(Long.valueOf(rps.getPosition()));
-				LOG.info("Scheduled restore of position: {}s", rps.getPosition());
+				LOG.info("Play scheduled restore position: {}s", rps.getPosition());
 			}
 			else {
 				LOG.info("Not restoring position for {} as track is {}.",

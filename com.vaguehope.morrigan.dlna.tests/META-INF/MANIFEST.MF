@@ -7,4 +7,11 @@ Bundle-Vendor: vaguehope.com
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Require-Bundle: org.junit;bundle-version="[4.0.0,5.0.0)",
  com.vaguehope.morrigan.dlna
-Import-Package: org.osgi.framework
+Import-Package: com.vaguehope.morrigan.engines.playback,
+ com.vaguehope.morrigan.player,
+ org.osgi.framework
+Bundle-ClassPath: .,
+ lib/mockito-core-3.3.3.jar,
+ lib/byte-buddy-1.10.5.jar,
+ lib/byte-buddy-agent-1.10.5.jar,
+ lib/objenesis-2.6.jar
