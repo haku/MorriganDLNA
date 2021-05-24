@@ -253,6 +253,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			renDurationSeconds = renPi.getTrackDurationSeconds();
 		}
 
+		// TODO FIXME this clobbers a 0 (no seek) when switching tracks.
 		// Stash current play back progress if greater than progress so far.
 		if (renElapsedSeconds > lopSeconds.get()) {
 			lopSeconds = Timestamped.of(renElapsedSeconds);
