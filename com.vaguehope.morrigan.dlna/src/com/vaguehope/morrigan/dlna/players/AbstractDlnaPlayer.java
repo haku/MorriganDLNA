@@ -57,21 +57,35 @@ public abstract class AbstractDlnaPlayer extends AbstractPlayer {
 
 	public AbstractDlnaPlayer (
 			final PlayerRegister register,
-			final ControlPoint controlPoint, final RemoteService avTransportSvc,
+			final ControlPoint controlPoint,
+			final RemoteService avTransportSvc,
 			final MediaServer mediaServer,
 			final MediaFileLocator mediaFileLocator,
-			final ScheduledExecutorService scheduledExecutor) {
+			final ScheduledExecutorService scheduledExecutor,
+			final AvTransportActions avTransportActions,
+			final RenderingControlActions renderingControlActions) {
 		super(UpnpHelper.idFromRemoteService(avTransportSvc), avTransportSvc.getDevice().getDetails().getFriendlyName(), register);
 		this.controlPoint = controlPoint;
 		this.avTransportSvc = avTransportSvc;
-		this.avTransport = new AvTransportActions(controlPoint, avTransportSvc);
 
-		final RemoteService renderingControlSvc = UpnpHelper.findFirstServiceOfType(avTransportSvc.getDevice(), UpnpHelper.SERVICE_RENDERINGCONTROL);
-		if (renderingControlSvc != null) {
-			this.renderingControl = new RenderingControlActions(controlPoint, renderingControlSvc);
+		if (avTransportActions != null) {
+			this.avTransport = avTransportActions;
 		}
 		else {
-			this.renderingControl = null;
+			this.avTransport = new AvTransportActions(controlPoint, avTransportSvc);
+		}
+
+		if (renderingControlActions != null) {
+			this.renderingControl = renderingControlActions;
+		}
+		else {
+			final RemoteService renderingControlSvc = UpnpHelper.findFirstServiceOfType(avTransportSvc.getDevice(), UpnpHelper.SERVICE_RENDERINGCONTROL);
+			if (renderingControlSvc != null) {
+				this.renderingControl = new RenderingControlActions(controlPoint, renderingControlSvc);
+			}
+			else {
+				this.renderingControl = null;
+			}
 		}
 
 		this.mediaServer = mediaServer;

@@ -36,8 +36,9 @@ Import-Package: ch.qos.logback.classic,
  org.slf4j
 Export-Package: com.vaguehope.morrigan.dlna,
  com.vaguehope.morrigan.dlna.content;x-friends:="com.vaguehope.morrigan.dlna.tests",
- com.vaguehope.morrigan.dlna.players;x-friends:="com.vaguehope.morrigan.dlna.tests",
  com.vaguehope.morrigan.dlna.httpserver;x-friends:="com.vaguehope.morrigan.dlna.tests",
+ com.vaguehope.morrigan.dlna.players;x-friends:="com.vaguehope.morrigan.dlna.tests",
  org.fourthline.cling.controlpoint;x-friends:="com.vaguehope.morrigan.dlna.tests",
  org.fourthline.cling.model.meta;x-friends:="com.vaguehope.morrigan.dlna.tests",
- org.fourthline.cling.model.types;x-friends:="com.vaguehope.morrigan.dlna.tests"
+ org.fourthline.cling.model.types;x-friends:="com.vaguehope.morrigan.dlna.tests",
+ org.fourthline.cling.support.model;x-friends:="com.vaguehope.morrigan.dlna.tests"

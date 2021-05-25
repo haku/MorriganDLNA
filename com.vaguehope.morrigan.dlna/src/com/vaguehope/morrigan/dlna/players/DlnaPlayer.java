@@ -30,7 +30,7 @@ public class DlnaPlayer extends AbstractDlnaPlayer {
 			final MediaServer mediaServer,
 			final MediaFileLocator mediaFileLocator,
 			final ScheduledExecutorService scheduledExecutor) {
-		super(register, controlPoint, avTransportSvc, mediaServer, mediaFileLocator, scheduledExecutor);
+		super(register, controlPoint, avTransportSvc, mediaServer, mediaFileLocator, scheduledExecutor, null, null);
 	}
 
 	@Override

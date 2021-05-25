@@ -61,7 +61,19 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			final MediaServer mediaServer,
 			final MediaFileLocator mediaFileLocator,
 			final ScheduledExecutorService scheduledExecutor) {
-		super(register, controlPoint, avTransportSvc, mediaServer, mediaFileLocator, scheduledExecutor);
+		this(register, controlPoint, avTransportSvc, mediaServer, mediaFileLocator, scheduledExecutor, null, null);
+	}
+
+	public GoalSeekingDlnaPlayer (
+			final PlayerRegister register,
+			final ControlPoint controlPoint,
+			final RemoteService avTransportSvc,
+			final MediaServer mediaServer,
+			final MediaFileLocator mediaFileLocator,
+			final ScheduledExecutorService scheduledExecutor,
+			final AvTransportActions avTransportActions,
+			final RenderingControlActions renderingControlActions) {
+		super(register, controlPoint, avTransportSvc, mediaServer, mediaFileLocator, scheduledExecutor, avTransportActions, renderingControlActions);
 		controlPoint.execute(new AvSubscriber(this, this.avEventListener, avTransportSvc, 600));
 		this.schdFuture = scheduledExecutor.scheduleWithFixedDelay(this.schdRunner, 1, 1, TimeUnit.SECONDS);
 	}
@@ -229,7 +241,6 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		// Capture state.
 		final DlnaToPlay goToPlay = this.goalToPlay;
 		final PlayState goState = this.goalState;
-		Timestamped<Long> lopSeconds = this.lastObservedPositionSeconds;
 
 		// If no goal state, do not do anything.
 		if (goToPlay == null) return PlayState.STOPPED;
@@ -253,13 +264,6 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			renDurationSeconds = renPi.getTrackDurationSeconds();
 		}
 
-		// TODO FIXME this clobbers a 0 (no seek) when switching tracks.
-		// Stash current play back progress if greater than progress so far.
-		if (renElapsedSeconds > lopSeconds.get()) {
-			lopSeconds = Timestamped.of(renElapsedSeconds);
-			this.lastObservedPositionSeconds = lopSeconds;
-		}
-
 		// Get things ready to compare.
 		final TransportState renState = renTi.getCurrentTransportState();
 		final String renUri = renMi != null ? renMi.getCurrentURI() : null;
@@ -277,7 +281,8 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		final long minPlayedSeconds = Math.max(minPlayedSecondsMin, 1); // Durations less than one second are going to cause issues.
 
 		// Has the track finished playing?
-		final boolean lopAtEnd = lopSeconds.get() >= minPlayedSeconds;
+		final long maxSecondsThatHaveBeenPlayed = Math.max(renElapsedSeconds, this.lastObservedPositionSeconds.get());
+		final boolean lopAtEnd = maxSecondsThatHaveBeenPlayed >= minPlayedSeconds;
 		final boolean trackNotPlaying = renUri == null || renState == TransportState.STOPPED || renState == TransportState.NO_MEDIA_PRESENT;
 		final boolean rendererStoppedPlaying = this.unprocessedPlaybackOfGoalStoppedEvent || (trackNotPlaying && lopAtEnd);
 		this.unprocessedPlaybackOfGoalStoppedEvent = false;
@@ -288,7 +293,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 
 			// Track ended event.
 			if (lopAtEnd) {
-				LOG.info("Assuming track was played to end: {} ({}s of {}s)", goToPlay.getId(), lopSeconds, goToPlay.getDurationSeconds());
+				LOG.info("Assuming track was played to end: {} ({}s of {}s)", goToPlay.getId(), maxSecondsThatHaveBeenPlayed, goToPlay.getDurationSeconds());
 				this.goalToPlay.recordEndOfTrack();
 
 				// Make the UI show that the end of the track was reached exactly.
@@ -302,7 +307,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 				return PlayState.STOPPED; // Made a change, so return.
 			}
 
-			LOG.info("But track did not play to end, going to try again from {}s...", lopSeconds);
+			LOG.info("But track did not play to end, going to try again from {}s...", this.lastObservedPositionSeconds);
 		}
 
 		// If renderer is between states or a strange state, wait.
@@ -341,7 +346,10 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 			if (goState == PlayState.PAUSED) return PlayState.PAUSED; // We would load, but will wait until not paused before doing so.
 
 			// If age of last observed position is too young, wait a bit in case end event turns up.
-			if (lopSeconds.age(TimeUnit.SECONDS) < WAIT_FOR_STOP_EVENT_TIMEOUT_SECONDS) return PlayState.LOADING;
+			if (this.lastObservedPositionSeconds.age(TimeUnit.SECONDS) < WAIT_FOR_STOP_EVENT_TIMEOUT_SECONDS) {
+				LOG.debug("Waiting for posible end event...");
+				return PlayState.LOADING;
+			}
 
 			if (renUri != null) {
 				LOG.info("Stopping: {}", renUri);
@@ -363,7 +371,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					goToPlay.getDurationSeconds());
 			this.avTransport.play();
 			LOG.debug("Loaded: {}.", goToPlay.getId());
-			scheduleRestorePosition(lopSeconds.get());
+			scheduleRestorePosition(this.lastObservedPositionSeconds.get());
 			return PlayState.LOADING; // Made a change, so return.
 		}
 
@@ -398,7 +406,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					case NO_MEDIA_PRESENT:
 						this.avTransport.play();
 						LOG.info("Started playback.");
-						scheduleRestorePosition(lopSeconds.get());
+						scheduleRestorePosition(this.lastObservedPositionSeconds.get());
 						return PlayState.PLAYING; // Made a change, so return.
 
 					case PAUSED_PLAYBACK:
@@ -410,6 +418,11 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 					default:
 				}
 			}
+		}
+
+		// Stash current play back progress if greater than progress so far.
+		if (renElapsedSeconds > this.lastObservedPositionSeconds.get()) {
+			this.lastObservedPositionSeconds = Timestamped.of(renElapsedSeconds);
 		}
 
 		// Notify event listeners.
@@ -438,7 +451,7 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 	private void scheduleRestorePosition (final long lopSeconds) {
 		if (lopSeconds > MIN_POSITION_TO_RESTORE_SECONDS) {
 			this.eventQueue.add(Long.valueOf(lopSeconds));
-			LOG.info("Scheduled restore position: {}s", lopSeconds);
+			LOG.info("Recovery scheduled restore position: {}s", lopSeconds);
 		}
 	}
 
@@ -517,8 +530,9 @@ public class GoalSeekingDlnaPlayer extends AbstractDlnaPlayer {
 		}
 	}
 
+	// Visible for testing.
 	@Override
-	protected void dlnaPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final int durationSeconds, final String coverArtUri) throws DlnaException {
+	public void dlnaPlay (final PlayItem item, final String id, final String uri, final MimeType mimeType, final long fileSize, final int durationSeconds, final String coverArtUri) throws DlnaException {
 		setCurrentItem(item);
 		saveState();
 
