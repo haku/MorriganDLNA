@@ -1,5 +1,7 @@
 package com.vaguehope.morrigan.dlna.httpserver;
 
+import java.io.IOException;
+import java.net.BindException;
 import java.net.InetAddress;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -12,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 public class MediaServer {
 
-	private static final int HTTP_PORT = 29085;
+	private static final int HTTP_START_PORT = 29085;
 	private static final Logger LOG = LoggerFactory.getLogger(MediaServer.class);
 
 	private final Server server;
@@ -26,7 +28,25 @@ public class MediaServer {
 
 	public void start () {
 		try {
-			this.server.start();
+			IOException bindFail = null;
+			for (int i = 0; i < 10; i++) {
+				try {
+					this.server.getConnectors()[0].setPort(HTTP_START_PORT + i);
+					this.server.start();
+					bindFail = null;
+					break;
+				}
+				catch (final BindException e) {
+					LOG.warn("Failed to bind to port {} ({}), trying a higher port...", this.server.getConnectors()[0].getPort(), e.toString());
+					bindFail = e;
+					this.server.stop();
+				}
+			}
+			if (bindFail != null) {
+				LOG.error("Abandonded search for port to bind to.");
+				throw bindFail;
+			}
+			LOG.info("External URL: {}", getExternalHttpUrl());
 		}
 		catch (Exception e) {
 			throw new IllegalStateException(e);
@@ -47,7 +67,7 @@ public class MediaServer {
 	}
 
 	private String getExternalHttpUrl () {
-		return "http://" + this.bindAddress + ":" + HTTP_PORT;
+		return "http://" + this.bindAddress + ":" + this.server.getConnectors()[0].getLocalPort();
 	}
 
 	private static Server makeContentServer (final FileLocator fileLocator, final String bindAddress) {
@@ -60,7 +80,7 @@ public class MediaServer {
 
 		final Server server = new Server();
 		server.setHandler(handler);
-		server.addConnector(createHttpConnector(bindAddress, HTTP_PORT));
+		server.addConnector(createHttpConnector(bindAddress, 0));
 		return server;
 	}
 
@@ -69,7 +89,6 @@ public class MediaServer {
 		connector.setStatsOn(false);
 		connector.setHost(hostAddress);
 		connector.setPort(port);
-		LOG.info("Creating connector: {}:{}", hostAddress, port);
 		return connector;
 	}
 
