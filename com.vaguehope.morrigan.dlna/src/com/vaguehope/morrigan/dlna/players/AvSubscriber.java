@@ -28,22 +28,22 @@ public class AvSubscriber extends SubscriptionCallback {
 
 	@Override
 	public void established (final GENASubscription sub) {
-		LOG.info("{} Established: {}", this.dlnaPlayer.getId(), sub.getSubscriptionId());
+		LOG.info("{} Established subscription: {}", this.dlnaPlayer.getId(), sub.getSubscriptionId());
 	}
 
 	@Override
 	public void failed (final GENASubscription sub, final UpnpResponse response, final Exception ex, final String defaultMsg) {
-		LOG.info("{} Failed: {}", this.dlnaPlayer.getId(), defaultMsg);
+		LOG.info("{} Subscription failed: {}", this.dlnaPlayer.getId(), defaultMsg);
 		reconnectIfAlive();
 	}
 
 	@Override
 	public void ended (final GENASubscription sub, final CancelReason reason, final UpnpResponse response) {
 		if (reason == null) {
-			LOG.info("{} Ended.", this.dlnaPlayer.getId());
+			LOG.info("{} Subscription ended.", this.dlnaPlayer.getId());
 		}
 		else {
-			LOG.warn("{} Ended: {} {}", this.dlnaPlayer.getId(), reason, response);
+			LOG.warn("{} Subscription ended: {} {}", this.dlnaPlayer.getId(), reason, response);
 		}
 		reconnectIfAlive();
 	}
@@ -56,12 +56,13 @@ public class AvSubscriber extends SubscriptionCallback {
 
 	@Override
 	public void eventsMissed (final GENASubscription sub, final int numberOfMissedEvents) {
-		LOG.warn("{} Missed {} events.", this.dlnaPlayer.getId(), numberOfMissedEvents);
+		LOG.warn("{} Missed {} subscription events.", this.dlnaPlayer.getId(), numberOfMissedEvents);
 	}
 
 	@Override
 	public void eventReceived (final GENASubscription sub) {
-		LOG.info("{} Event {}: {}", this.dlnaPlayer.getId(), sub.getCurrentSequence().getValue(), sub.getCurrentValues());
+		// Use this log event to see what types of event there are.
+		LOG.debug("{} Event {}: {}", this.dlnaPlayer.getId(), sub.getCurrentSequence().getValue(), sub.getCurrentValues());
 		try {
 			final Object rawLastChange = sub.getCurrentValues().get("LastChange");
 			if (rawLastChange != null) {
@@ -83,7 +84,7 @@ public class AvSubscriber extends SubscriptionCallback {
 			}
 		}
 		catch (final Exception e) {
-			LOG.warn("{} Failed to handle event: {}", this.dlnaPlayer.getId(), ErrorHelper.oneLineCauseTrace(e));
+			LOG.warn("{} Failed to subscription handle event: {}", this.dlnaPlayer.getId(), ErrorHelper.oneLineCauseTrace(e));
 		}
 	}
 
@@ -94,6 +95,7 @@ public class AvSubscriber extends SubscriptionCallback {
 	}
 
 	private void lastChangeReceived (final LastChange lastChange) {
+		// if there were multiple instances lastChange.getInstanceIDs() would be useful, but assumeing always instance 0.
 		final AVTransportVariable.TransportState varTransportState = lastChange.getEventedValue(0, AVTransportVariable.TransportState.class);
 		if (varTransportState != null) {
 			final TransportState transportState = varTransportState.getValue();
